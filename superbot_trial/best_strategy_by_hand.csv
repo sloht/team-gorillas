@@ -1,0 +1,21 @@
+hand,combos,best,best_bb_per_hand,best_std_error,runner_up,runner_up_bb_per_hand,margin,clear_winner,hands_per_strategy
+7c 7s 6d 6h 6s,12,PotOddsCaller04,1.275,1.2061,DrawChaser08,1.1931,0.0819,False,72
+7h 7s 6d 6h 6s,12,TightValue09,-0.7222,0.1123,FieldBalanced,-0.7958,0.0736,False,72
+7s 6c 6d 6h 6s,4,TextureAware03,-0.7292,0.0342,TextureAware07,-0.7292,0.0,False,72
+8c 7s 6d 6h 6s,12,DrawChaser06,0.1306,0.2384,RangeMixer07,-0.1708,0.3014,False,72
+8h 7s 6d 6h 6s,24,BlockerPressure06,-0.3375,0.2222,BlockerPressure08,-0.4708,0.1333,False,72
+8s 6c 6d 6h 6s,4,BlockerPressure03,-0.6042,0.0513,BlockerPressure04,-0.6042,0.0,False,72
+8s 7s 6d 6h 6s,12,TightValue09,-0.6875,0.0413,BlockerPressure03,-0.7042,0.0167,False,72
+9c 7s 6d 6h 6s,12,DrawChaser04,-0.4028,0.2071,DrawChaser08,-0.4028,0.0,False,72
+9h 7s 6d 6h 6s,24,BlockerPressure06,-0.6458,0.0468,BlockerPressure10,-0.6458,0.0,False,72
+9s 6c 6d 6h 6s,4,BlockerPressure03,-0.6667,0.0442,BlockerPressure04,-0.6667,0.0,False,72
+9s 7s 6d 6h 6s,12,FieldBalanced,1.45,1.411,DrawChaser06,-0.0917,1.5417,False,72
+As 6c 6d 6h 6s,4,FieldBalanced,-0.2819,0.197,PotOddsCaller08,-0.3972,0.1153,False,72
+Js 6c 6d 6h 6s,4,BlockerPressure03,-0.6875,0.0413,BlockerPressure04,-0.6875,0.0,False,72
+Js 7s 6d 6h 6s,12,BlockerPressure08,0.8167,1.4043,RangeMixer08,0.8056,0.0111,False,72
+Ks 6c 6d 6h 6s,4,BlockerPressure04,-0.6875,0.0413,BlockerPressure06,-0.6875,0.0,False,72
+Qs 6c 6d 6h 6s,4,BlockerPressure03,-0.6667,0.0442,BlockerPressure06,-0.6667,0.0,False,72
+Tc 7s 6d 6h 6s,12,BlockerPressure10,-0.5208,0.0674,DefensiveCaller02,-0.5208,0.0,False,72
+Th 7s 6d 6h 6s,24,FieldBalanced,0.5569,1.1521,DrawChaser04,0.5556,0.0014,False,72
+Ts 6c 6d 6h 6s,4,BlockerPressure04,-0.6875,0.0413,BlockerPressure08,-0.6875,0.0,False,72
+Ts 7s 6d 6h 6s,12,BlockerPressure03,-0.5556,0.0622,BlockerPressure06,-0.5556,0.0,False,72

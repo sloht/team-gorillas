@@ -1,0 +1,2069 @@
+{
+ "config": {
+  "pool": [
+   "ShortDeckPLO",
+   "Random",
+   "CallingStation",
+   "TightAggressive",
+   "LooseAggressive",
+   "Rock",
+   "Maniac",
+   "PotControl",
+   "Bluff",
+   "ValueFirst",
+   "PotOdds",
+   "PositionPressure",
+   "SPRShove",
+   "TrapValue",
+   "SmallBall",
+   "BoardTexture",
+   "RangePressure",
+   "AdaptiveCall",
+   "DelayedAggressor",
+   "BlockerBluff",
+   "FieldBalanced",
+   "EquityValue01",
+   "EquityValue02",
+   "EquityValue03",
+   "EquityValue04",
+   "EquityValue05",
+   "EquityValue06",
+   "EquityValue07",
+   "EquityValue08",
+   "EquityValue09",
+   "EquityValue10",
+   "TightValue01",
+   "TightValue02",
+   "TightValue03",
+   "TightValue04",
+   "TightValue05",
+   "TightValue06",
+   "TightValue07",
+   "TightValue08",
+   "TightValue09",
+   "TightValue10",
+   "PotOddsCaller01",
+   "PotOddsCaller02",
+   "PotOddsCaller03",
+   "PotOddsCaller04",
+   "PotOddsCaller05",
+   "PotOddsCaller06",
+   "PotOddsCaller07",
+   "PotOddsCaller08",
+   "PotOddsCaller09",
+   "PotOddsCaller10",
+   "PositionValue01",
+   "PositionValue02",
+   "PositionValue03",
+   "PositionValue04",
+   "PositionValue05",
+   "PositionValue06",
+   "PositionValue07",
+   "PositionValue08",
+   "PositionValue09",
+   "PositionValue10",
+   "BluffPressure01",
+   "BluffPressure02",
+   "BluffPressure03",
+   "BluffPressure04",
+   "BluffPressure05",
+   "BluffPressure06",
+   "BluffPressure07",
+   "BluffPressure08",
+   "BluffPressure09",
+   "BluffPressure10",
+   "SmallBall01",
+   "SmallBall02",
+   "SmallBall03",
+   "SmallBall04",
+   "SmallBall05",
+   "SmallBall06",
+   "SmallBall07",
+   "SmallBall08",
+   "SmallBall09",
+   "SmallBall10",
+   "PotShove01",
+   "PotShove02",
+   "PotShove03",
+   "PotShove04",
+   "PotShove05",
+   "PotShove06",
+   "PotShove07",
+   "PotShove08",
+   "PotShove09",
+   "PotShove10",
+   "TextureAware01",
+   "TextureAware02",
+   "TextureAware03",
+   "TextureAware04",
+   "TextureAware05",
+   "TextureAware06",
+   "TextureAware07",
+   "TextureAware08",
+   "TextureAware09",
+   "TextureAware10",
+   "LateStreet01",
+   "LateStreet02",
+   "LateStreet03",
+   "LateStreet04",
+   "LateStreet05",
+   "LateStreet06",
+   "LateStreet07",
+   "LateStreet08",
+   "LateStreet09",
+   "LateStreet10",
+   "PreflopSelective01",
+   "PreflopSelective02",
+   "PreflopSelective03",
+   "PreflopSelective04",
+   "PreflopSelective05",
+   "PreflopSelective06",
+   "PreflopSelective07",
+   "PreflopSelective08",
+   "PreflopSelective09",
+   "PreflopSelective10",
+   "DrawChaser01",
+   "DrawChaser02",
+   "DrawChaser03",
+   "DrawChaser04",
+   "DrawChaser05",
+   "DrawChaser06",
+   "DrawChaser07",
+   "DrawChaser08",
+   "DrawChaser09",
+   "DrawChaser10",
+   "TrapValue01",
+   "TrapValue02",
+   "TrapValue03",
+   "TrapValue04",
+   "TrapValue05",
+   "TrapValue06",
+   "TrapValue07",
+   "TrapValue08",
+   "TrapValue09",
+   "TrapValue10",
+   "RangeMixer01",
+   "RangeMixer02",
+   "RangeMixer03",
+   "RangeMixer04",
+   "RangeMixer05",
+   "RangeMixer06",
+   "RangeMixer07",
+   "RangeMixer08",
+   "RangeMixer09",
+   "RangeMixer10",
+   "DefensiveCaller01",
+   "DefensiveCaller02",
+   "DefensiveCaller03",
+   "DefensiveCaller04",
+   "DefensiveCaller05",
+   "DefensiveCaller06",
+   "DefensiveCaller07",
+   "DefensiveCaller08",
+   "DefensiveCaller09",
+   "DefensiveCaller10",
+   "AggressiveValue01",
+   "AggressiveValue02",
+   "AggressiveValue03",
+   "AggressiveValue04",
+   "AggressiveValue05",
+   "AggressiveValue06",
+   "AggressiveValue07",
+   "AggressiveValue08",
+   "AggressiveValue09",
+   "AggressiveValue10",
+   "BalancedField01",
+   "BalancedField02",
+   "BalancedField03",
+   "BalancedField04",
+   "BalancedField05",
+   "BalancedField06",
+   "BalancedField07",
+   "BalancedField08",
+   "BalancedField09",
+   "BalancedField10",
+   "BlockerPressure01",
+   "BlockerPressure02",
+   "BlockerPressure03",
+   "BlockerPressure04",
+   "BlockerPressure05",
+   "BlockerPressure06",
+   "BlockerPressure07",
+   "BlockerPressure08",
+   "BlockerPressure09",
+   "BlockerPressure10",
+   "UncertaintyAware01",
+   "UncertaintyAware02",
+   "UncertaintyAware03",
+   "UncertaintyAware04",
+   "UncertaintyAware05",
+   "UncertaintyAware06",
+   "UncertaintyAware07",
+   "UncertaintyAware08",
+   "UncertaintyAware09",
+   "UncertaintyAware10"
+  ],
+  "seeds": [
+   1001,
+   1002,
+   1003
+  ],
+  "deals_per_match": 200,
+  "scoring": "official duplicate (judge_engine.combine_halves)",
+  "rules": "official heads-up-bundle c83ab6e"
+ },
+ "top": 40,
+ "qualified": [
+  "PotShove08",
+  "PotShove04",
+  "AggressiveValue08",
+  "PotShove02",
+  "BlockerPressure08",
+  "PotShove06",
+  "PotShove10",
+  "AggressiveValue06",
+  "PotShove07",
+  "AggressiveValue10",
+  "SmallBall03",
+  "BluffPressure08",
+  "SmallBall09",
+  "TightValue04",
+  "BlockerPressure09",
+  "BluffPressure10",
+  "PotShove09",
+  "DefensiveCaller08",
+  "TextureAware09",
+  "BoardTexture",
+  "UncertaintyAware08",
+  "EquityValue10",
+  "TextureAware01",
+  "BlockerPressure04",
+  "TightValue01",
+  "EquityValue04",
+  "BlockerPressure10",
+  "SmallBall08",
+  "DefensiveCaller04",
+  "LateStreet07",
+  "UncertaintyAware04",
+  "DefensiveCaller02",
+  "BalancedField07",
+  "PreflopSelective08",
+  "TextureAware07",
+  "BalancedField04",
+  "TextureAware04",
+  "RangeMixer10",
+  "TightValue08",
+  "PositionValue08"
+ ],
+ "ranking": [
+  {
+   "name": "PotShove08",
+   "matches": 600,
+   "points": 415.0,
+   "wins": 230,
+   "chops": 370,
+   "losses": 0,
+   "avg_bb_per_deal": 1.0024
+  },
+  {
+   "name": "PotShove04",
+   "matches": 600,
+   "points": 366.5,
+   "wins": 133,
+   "chops": 467,
+   "losses": 0,
+   "avg_bb_per_deal": 0.862683
+  },
+  {
+   "name": "AggressiveValue08",
+   "matches": 600,
+   "points": 347.0,
+   "wins": 94,
+   "chops": 506,
+   "losses": 0,
+   "avg_bb_per_deal": 0.822479
+  },
+  {
+   "name": "PotShove02",
+   "matches": 600,
+   "points": 344.5,
+   "wins": 89,
+   "chops": 511,
+   "losses": 0,
+   "avg_bb_per_deal": 0.562021
+  },
+  {
+   "name": "BlockerPressure08",
+   "matches": 600,
+   "points": 343.0,
+   "wins": 88,
+   "chops": 510,
+   "losses": 2,
+   "avg_bb_per_deal": 0.517087
+  },
+  {
+   "name": "PotShove06",
+   "matches": 600,
+   "points": 342.0,
+   "wins": 85,
+   "chops": 514,
+   "losses": 1,
+   "avg_bb_per_deal": 0.561496
+  },
+  {
+   "name": "PotShove10",
+   "matches": 600,
+   "points": 337.0,
+   "wins": 75,
+   "chops": 524,
+   "losses": 1,
+   "avg_bb_per_deal": 0.513938
+  },
+  {
+   "name": "AggressiveValue06",
+   "matches": 600,
+   "points": 335.5,
+   "wins": 72,
+   "chops": 527,
+   "losses": 1,
+   "avg_bb_per_deal": 0.616704
+  },
+  {
+   "name": "PotShove07",
+   "matches": 600,
+   "points": 334.0,
+   "wins": 68,
+   "chops": 532,
+   "losses": 0,
+   "avg_bb_per_deal": 0.563846
+  },
+  {
+   "name": "AggressiveValue10",
+   "matches": 600,
+   "points": 330.0,
+   "wins": 60,
+   "chops": 540,
+   "losses": 0,
+   "avg_bb_per_deal": 0.670538
+  },
+  {
+   "name": "SmallBall03",
+   "matches": 600,
+   "points": 330.0,
+   "wins": 62,
+   "chops": 536,
+   "losses": 2,
+   "avg_bb_per_deal": 0.281342
+  },
+  {
+   "name": "BluffPressure08",
+   "matches": 600,
+   "points": 329.5,
+   "wins": 63,
+   "chops": 533,
+   "losses": 4,
+   "avg_bb_per_deal": 0.484479
+  },
+  {
+   "name": "SmallBall09",
+   "matches": 600,
+   "points": 328.0,
+   "wins": 56,
+   "chops": 544,
+   "losses": 0,
+   "avg_bb_per_deal": 0.188504
+  },
+  {
+   "name": "TightValue04",
+   "matches": 600,
+   "points": 327.5,
+   "wins": 57,
+   "chops": 541,
+   "losses": 2,
+   "avg_bb_per_deal": 0.2851
+  },
+  {
+   "name": "BlockerPressure09",
+   "matches": 600,
+   "points": 327.0,
+   "wins": 57,
+   "chops": 540,
+   "losses": 3,
+   "avg_bb_per_deal": 0.229471
+  },
+  {
+   "name": "BluffPressure10",
+   "matches": 600,
+   "points": 325.5,
+   "wins": 52,
+   "chops": 547,
+   "losses": 1,
+   "avg_bb_per_deal": 0.460342
+  },
+  {
+   "name": "PotShove09",
+   "matches": 600,
+   "points": 325.5,
+   "wins": 52,
+   "chops": 547,
+   "losses": 1,
+   "avg_bb_per_deal": 0.212408
+  },
+  {
+   "name": "DefensiveCaller08",
+   "matches": 600,
+   "points": 325.0,
+   "wins": 54,
+   "chops": 542,
+   "losses": 4,
+   "avg_bb_per_deal": 0.170467
+  },
+  {
+   "name": "TextureAware09",
+   "matches": 600,
+   "points": 324.5,
+   "wins": 49,
+   "chops": 551,
+   "losses": 0,
+   "avg_bb_per_deal": 0.226179
+  },
+  {
+   "name": "BoardTexture",
+   "matches": 600,
+   "points": 323.5,
+   "wins": 48,
+   "chops": 551,
+   "losses": 1,
+   "avg_bb_per_deal": 0.3449
+  },
+  {
+   "name": "UncertaintyAware08",
+   "matches": 600,
+   "points": 323.5,
+   "wins": 51,
+   "chops": 545,
+   "losses": 4,
+   "avg_bb_per_deal": 0.250329
+  },
+  {
+   "name": "EquityValue10",
+   "matches": 600,
+   "points": 322.5,
+   "wins": 46,
+   "chops": 553,
+   "losses": 1,
+   "avg_bb_per_deal": 0.31185
+  },
+  {
+   "name": "TextureAware01",
+   "matches": 600,
+   "points": 320.5,
+   "wins": 45,
+   "chops": 551,
+   "losses": 4,
+   "avg_bb_per_deal": 0.150458
+  },
+  {
+   "name": "BlockerPressure04",
+   "matches": 600,
+   "points": 318.5,
+   "wins": 38,
+   "chops": 561,
+   "losses": 1,
+   "avg_bb_per_deal": 0.275317
+  },
+  {
+   "name": "TightValue01",
+   "matches": 600,
+   "points": 318.5,
+   "wins": 38,
+   "chops": 561,
+   "losses": 1,
+   "avg_bb_per_deal": 0.181821
+  },
+  {
+   "name": "EquityValue04",
+   "matches": 600,
+   "points": 318.0,
+   "wins": 40,
+   "chops": 556,
+   "losses": 4,
+   "avg_bb_per_deal": 0.348038
+  },
+  {
+   "name": "BlockerPressure10",
+   "matches": 600,
+   "points": 317.5,
+   "wins": 37,
+   "chops": 561,
+   "losses": 2,
+   "avg_bb_per_deal": 0.345017
+  },
+  {
+   "name": "SmallBall08",
+   "matches": 600,
+   "points": 317.0,
+   "wins": 38,
+   "chops": 558,
+   "losses": 4,
+   "avg_bb_per_deal": 0.287962
+  },
+  {
+   "name": "DefensiveCaller04",
+   "matches": 600,
+   "points": 317.0,
+   "wins": 46,
+   "chops": 542,
+   "losses": 12,
+   "avg_bb_per_deal": 0.196804
+  },
+  {
+   "name": "LateStreet07",
+   "matches": 600,
+   "points": 316.5,
+   "wins": 35,
+   "chops": 563,
+   "losses": 2,
+   "avg_bb_per_deal": 0.134279
+  },
+  {
+   "name": "UncertaintyAware04",
+   "matches": 600,
+   "points": 316.0,
+   "wins": 34,
+   "chops": 564,
+   "losses": 2,
+   "avg_bb_per_deal": 0.329308
+  },
+  {
+   "name": "DefensiveCaller02",
+   "matches": 600,
+   "points": 316.0,
+   "wins": 35,
+   "chops": 562,
+   "losses": 3,
+   "avg_bb_per_deal": 0.209875
+  },
+  {
+   "name": "BalancedField07",
+   "matches": 600,
+   "points": 316.0,
+   "wins": 36,
+   "chops": 560,
+   "losses": 4,
+   "avg_bb_per_deal": 0.148258
+  },
+  {
+   "name": "PreflopSelective08",
+   "matches": 600,
+   "points": 315.5,
+   "wins": 31,
+   "chops": 569,
+   "losses": 0,
+   "avg_bb_per_deal": 0.29055
+  },
+  {
+   "name": "TextureAware07",
+   "matches": 600,
+   "points": 315.5,
+   "wins": 32,
+   "chops": 567,
+   "losses": 1,
+   "avg_bb_per_deal": 0.103246
+  },
+  {
+   "name": "BalancedField04",
+   "matches": 600,
+   "points": 315.0,
+   "wins": 34,
+   "chops": 562,
+   "losses": 4,
+   "avg_bb_per_deal": 0.292454
+  },
+  {
+   "name": "TextureAware04",
+   "matches": 600,
+   "points": 315.0,
+   "wins": 31,
+   "chops": 568,
+   "losses": 1,
+   "avg_bb_per_deal": 0.278408
+  },
+  {
+   "name": "RangeMixer10",
+   "matches": 600,
+   "points": 314.5,
+   "wins": 33,
+   "chops": 563,
+   "losses": 4,
+   "avg_bb_per_deal": 0.271433
+  },
+  {
+   "name": "TightValue08",
+   "matches": 600,
+   "points": 314.5,
+   "wins": 33,
+   "chops": 563,
+   "losses": 4,
+   "avg_bb_per_deal": 0.128087
+  },
+  {
+   "name": "PositionValue08",
+   "matches": 600,
+   "points": 314.0,
+   "wins": 30,
+   "chops": 568,
+   "losses": 2,
+   "avg_bb_per_deal": 0.277321
+  },
+  {
+   "name": "SmallBall",
+   "matches": 600,
+   "points": 314.0,
+   "wins": 32,
+   "chops": 564,
+   "losses": 4,
+   "avg_bb_per_deal": 0.212696
+  },
+  {
+   "name": "LateStreet10",
+   "matches": 600,
+   "points": 314.0,
+   "wins": 30,
+   "chops": 568,
+   "losses": 2,
+   "avg_bb_per_deal": 0.201671
+  },
+  {
+   "name": "DrawChaser08",
+   "matches": 600,
+   "points": 314.0,
+   "wins": 34,
+   "chops": 560,
+   "losses": 6,
+   "avg_bb_per_deal": 0.168683
+  },
+  {
+   "name": "UncertaintyAware03",
+   "matches": 600,
+   "points": 314.0,
+   "wins": 32,
+   "chops": 564,
+   "losses": 4,
+   "avg_bb_per_deal": 0.126329
+  },
+  {
+   "name": "UncertaintyAware09",
+   "matches": 600,
+   "points": 314.0,
+   "wins": 31,
+   "chops": 566,
+   "losses": 3,
+   "avg_bb_per_deal": 0.104233
+  },
+  {
+   "name": "BlockerPressure03",
+   "matches": 600,
+   "points": 313.5,
+   "wins": 35,
+   "chops": 557,
+   "losses": 8,
+   "avg_bb_per_deal": 0.019754
+  },
+  {
+   "name": "DefensiveCaller06",
+   "matches": 600,
+   "points": 313.0,
+   "wins": 26,
+   "chops": 574,
+   "losses": 0,
+   "avg_bb_per_deal": 0.201525
+  },
+  {
+   "name": "PotOdds",
+   "matches": 600,
+   "points": 313.0,
+   "wins": 35,
+   "chops": 556,
+   "losses": 9,
+   "avg_bb_per_deal": 0.184229
+  },
+  {
+   "name": "EquityValue08",
+   "matches": 600,
+   "points": 312.5,
+   "wins": 32,
+   "chops": 561,
+   "losses": 7,
+   "avg_bb_per_deal": 0.325758
+  },
+  {
+   "name": "TextureAware10",
+   "matches": 600,
+   "points": 312.5,
+   "wins": 26,
+   "chops": 573,
+   "losses": 1,
+   "avg_bb_per_deal": 0.245425
+  },
+  {
+   "name": "DelayedAggressor",
+   "matches": 600,
+   "points": 312.5,
+   "wins": 30,
+   "chops": 565,
+   "losses": 5,
+   "avg_bb_per_deal": 0.191604
+  },
+  {
+   "name": "LateStreet04",
+   "matches": 600,
+   "points": 312.0,
+   "wins": 28,
+   "chops": 568,
+   "losses": 4,
+   "avg_bb_per_deal": 0.301071
+  },
+  {
+   "name": "PreflopSelective04",
+   "matches": 600,
+   "points": 312.0,
+   "wins": 25,
+   "chops": 574,
+   "losses": 1,
+   "avg_bb_per_deal": 0.263663
+  },
+  {
+   "name": "UncertaintyAware07",
+   "matches": 600,
+   "points": 312.0,
+   "wins": 26,
+   "chops": 572,
+   "losses": 2,
+   "avg_bb_per_deal": 0.127317
+  },
+  {
+   "name": "PositionValue07",
+   "matches": 600,
+   "points": 312.0,
+   "wins": 28,
+   "chops": 568,
+   "losses": 4,
+   "avg_bb_per_deal": 0.106462
+  },
+  {
+   "name": "SmallBall04",
+   "matches": 600,
+   "points": 311.5,
+   "wins": 26,
+   "chops": 571,
+   "losses": 3,
+   "avg_bb_per_deal": 0.277225
+  },
+  {
+   "name": "DrawChaser06",
+   "matches": 600,
+   "points": 311.5,
+   "wins": 35,
+   "chops": 553,
+   "losses": 12,
+   "avg_bb_per_deal": 0.124163
+  },
+  {
+   "name": "EquityValue07",
+   "matches": 600,
+   "points": 311.5,
+   "wins": 27,
+   "chops": 569,
+   "losses": 4,
+   "avg_bb_per_deal": 0.079704
+  },
+  {
+   "name": "BalancedField08",
+   "matches": 600,
+   "points": 311.0,
+   "wins": 27,
+   "chops": 568,
+   "losses": 5,
+   "avg_bb_per_deal": 0.291042
+  },
+  {
+   "name": "SmallBall10",
+   "matches": 600,
+   "points": 311.0,
+   "wins": 22,
+   "chops": 578,
+   "losses": 0,
+   "avg_bb_per_deal": 0.232663
+  },
+  {
+   "name": "TextureAware06",
+   "matches": 600,
+   "points": 311.0,
+   "wins": 23,
+   "chops": 576,
+   "losses": 1,
+   "avg_bb_per_deal": 0.228921
+  },
+  {
+   "name": "SmallBall07",
+   "matches": 600,
+   "points": 311.0,
+   "wins": 23,
+   "chops": 576,
+   "losses": 1,
+   "avg_bb_per_deal": 0.175929
+  },
+  {
+   "name": "LateStreet08",
+   "matches": 600,
+   "points": 310.5,
+   "wins": 25,
+   "chops": 571,
+   "losses": 4,
+   "avg_bb_per_deal": 0.267167
+  },
+  {
+   "name": "PositionValue04",
+   "matches": 600,
+   "points": 310.0,
+   "wins": 23,
+   "chops": 574,
+   "losses": 3,
+   "avg_bb_per_deal": 0.2313
+  },
+  {
+   "name": "TextureAware02",
+   "matches": 600,
+   "points": 310.0,
+   "wins": 22,
+   "chops": 576,
+   "losses": 2,
+   "avg_bb_per_deal": 0.122062
+  },
+  {
+   "name": "RangeMixer07",
+   "matches": 600,
+   "points": 310.0,
+   "wins": 28,
+   "chops": 564,
+   "losses": 8,
+   "avg_bb_per_deal": 0.02355
+  },
+  {
+   "name": "PositionValue10",
+   "matches": 600,
+   "points": 309.5,
+   "wins": 22,
+   "chops": 575,
+   "losses": 3,
+   "avg_bb_per_deal": 0.259279
+  },
+  {
+   "name": "AggressiveValue04",
+   "matches": 600,
+   "points": 309.0,
+   "wins": 25,
+   "chops": 568,
+   "losses": 7,
+   "avg_bb_per_deal": 0.260242
+  },
+  {
+   "name": "RangeMixer08",
+   "matches": 600,
+   "points": 309.0,
+   "wins": 23,
+   "chops": 572,
+   "losses": 5,
+   "avg_bb_per_deal": 0.246358
+  },
+  {
+   "name": "BluffPressure04",
+   "matches": 600,
+   "points": 309.0,
+   "wins": 21,
+   "chops": 576,
+   "losses": 3,
+   "avg_bb_per_deal": 0.158858
+  },
+  {
+   "name": "TightAggressive",
+   "matches": 600,
+   "points": 309.0,
+   "wins": 25,
+   "chops": 568,
+   "losses": 7,
+   "avg_bb_per_deal": 0.1526
+  },
+  {
+   "name": "TextureAware08",
+   "matches": 600,
+   "points": 308.5,
+   "wins": 18,
+   "chops": 581,
+   "losses": 1,
+   "avg_bb_per_deal": 0.194904
+  },
+  {
+   "name": "DefensiveCaller03",
+   "matches": 600,
+   "points": 308.5,
+   "wins": 19,
+   "chops": 579,
+   "losses": 2,
+   "avg_bb_per_deal": 0.170587
+  },
+  {
+   "name": "RangeMixer03",
+   "matches": 600,
+   "points": 308.5,
+   "wins": 20,
+   "chops": 577,
+   "losses": 3,
+   "avg_bb_per_deal": 0.041592
+  },
+  {
+   "name": "BalancedField10",
+   "matches": 600,
+   "points": 308.0,
+   "wins": 21,
+   "chops": 574,
+   "losses": 5,
+   "avg_bb_per_deal": 0.208908
+  },
+  {
+   "name": "LateStreet09",
+   "matches": 600,
+   "points": 308.0,
+   "wins": 20,
+   "chops": 576,
+   "losses": 4,
+   "avg_bb_per_deal": 0.027642
+  },
+  {
+   "name": "PotShove03",
+   "matches": 600,
+   "points": 307.5,
+   "wins": 16,
+   "chops": 583,
+   "losses": 1,
+   "avg_bb_per_deal": 0.365704
+  },
+  {
+   "name": "SmallBall06",
+   "matches": 600,
+   "points": 307.5,
+   "wins": 16,
+   "chops": 583,
+   "losses": 1,
+   "avg_bb_per_deal": 0.136929
+  },
+  {
+   "name": "PositionValue06",
+   "matches": 600,
+   "points": 307.5,
+   "wins": 21,
+   "chops": 573,
+   "losses": 6,
+   "avg_bb_per_deal": 0.070025
+  },
+  {
+   "name": "TextureAware03",
+   "matches": 600,
+   "points": 307.5,
+   "wins": 16,
+   "chops": 583,
+   "losses": 1,
+   "avg_bb_per_deal": 0.023783
+  },
+  {
+   "name": "RangeMixer04",
+   "matches": 600,
+   "points": 307.0,
+   "wins": 22,
+   "chops": 570,
+   "losses": 8,
+   "avg_bb_per_deal": 0.25335
+  },
+  {
+   "name": "DefensiveCaller09",
+   "matches": 600,
+   "points": 307.0,
+   "wins": 19,
+   "chops": 576,
+   "losses": 5,
+   "avg_bb_per_deal": 0.128533
+  },
+  {
+   "name": "UncertaintyAware02",
+   "matches": 600,
+   "points": 307.0,
+   "wins": 18,
+   "chops": 578,
+   "losses": 4,
+   "avg_bb_per_deal": 0.1016
+  },
+  {
+   "name": "PreflopSelective03",
+   "matches": 600,
+   "points": 307.0,
+   "wins": 28,
+   "chops": 558,
+   "losses": 14,
+   "avg_bb_per_deal": 0.082988
+  },
+  {
+   "name": "BlockerPressure02",
+   "matches": 600,
+   "points": 307.0,
+   "wins": 19,
+   "chops": 576,
+   "losses": 5,
+   "avg_bb_per_deal": 0.039196
+  },
+  {
+   "name": "AggressiveValue02",
+   "matches": 600,
+   "points": 307.0,
+   "wins": 31,
+   "chops": 552,
+   "losses": 17,
+   "avg_bb_per_deal": -0.114171
+  },
+  {
+   "name": "DrawChaser10",
+   "matches": 600,
+   "points": 306.5,
+   "wins": 21,
+   "chops": 571,
+   "losses": 8,
+   "avg_bb_per_deal": 0.121921
+  },
+  {
+   "name": "AggressiveValue07",
+   "matches": 600,
+   "points": 306.5,
+   "wins": 15,
+   "chops": 583,
+   "losses": 2,
+   "avg_bb_per_deal": -0.011037
+  },
+  {
+   "name": "BlockerPressure07",
+   "matches": 600,
+   "points": 306.5,
+   "wins": 27,
+   "chops": 559,
+   "losses": 14,
+   "avg_bb_per_deal": -0.026004
+  },
+  {
+   "name": "TightValue02",
+   "matches": 600,
+   "points": 306.0,
+   "wins": 16,
+   "chops": 580,
+   "losses": 4,
+   "avg_bb_per_deal": 0.112658
+  },
+  {
+   "name": "TrapValue08",
+   "matches": 600,
+   "points": 306.0,
+   "wins": 21,
+   "chops": 570,
+   "losses": 9,
+   "avg_bb_per_deal": 0.075946
+  },
+  {
+   "name": "TextureAware05",
+   "matches": 600,
+   "points": 306.0,
+   "wins": 17,
+   "chops": 578,
+   "losses": 5,
+   "avg_bb_per_deal": 0.072887
+  },
+  {
+   "name": "PreflopSelective07",
+   "matches": 600,
+   "points": 306.0,
+   "wins": 23,
+   "chops": 566,
+   "losses": 11,
+   "avg_bb_per_deal": 0.021625
+  },
+  {
+   "name": "BluffPressure07",
+   "matches": 600,
+   "points": 306.0,
+   "wins": 18,
+   "chops": 576,
+   "losses": 6,
+   "avg_bb_per_deal": -0.043946
+  },
+  {
+   "name": "BalancedField09",
+   "matches": 600,
+   "points": 306.0,
+   "wins": 25,
+   "chops": 562,
+   "losses": 13,
+   "avg_bb_per_deal": -0.136175
+  },
+  {
+   "name": "BlockerPressure06",
+   "matches": 600,
+   "points": 305.5,
+   "wins": 18,
+   "chops": 575,
+   "losses": 7,
+   "avg_bb_per_deal": 0.0663
+  },
+  {
+   "name": "PreflopSelective06",
+   "matches": 600,
+   "points": 305.5,
+   "wins": 15,
+   "chops": 581,
+   "losses": 4,
+   "avg_bb_per_deal": 0.059404
+  },
+  {
+   "name": "EquityValue06",
+   "matches": 600,
+   "points": 305.5,
+   "wins": 18,
+   "chops": 575,
+   "losses": 7,
+   "avg_bb_per_deal": 0.025567
+  },
+  {
+   "name": "RangeMixer09",
+   "matches": 600,
+   "points": 305.5,
+   "wins": 23,
+   "chops": 565,
+   "losses": 12,
+   "avg_bb_per_deal": -0.039329
+  },
+  {
+   "name": "TrapValue",
+   "matches": 600,
+   "points": 305.0,
+   "wins": 31,
+   "chops": 548,
+   "losses": 21,
+   "avg_bb_per_deal": 0.071696
+  },
+  {
+   "name": "PotOddsCaller06",
+   "matches": 600,
+   "points": 305.0,
+   "wins": 16,
+   "chops": 578,
+   "losses": 6,
+   "avg_bb_per_deal": 0.071346
+  },
+  {
+   "name": "SmallBall02",
+   "matches": 600,
+   "points": 305.0,
+   "wins": 14,
+   "chops": 582,
+   "losses": 4,
+   "avg_bb_per_deal": 0.070675
+  },
+  {
+   "name": "DrawChaser02",
+   "matches": 600,
+   "points": 305.0,
+   "wins": 21,
+   "chops": 568,
+   "losses": 11,
+   "avg_bb_per_deal": 0.063942
+  },
+  {
+   "name": "DefensiveCaller01",
+   "matches": 600,
+   "points": 305.0,
+   "wins": 16,
+   "chops": 578,
+   "losses": 6,
+   "avg_bb_per_deal": 0.045954
+  },
+  {
+   "name": "BlockerPressure05",
+   "matches": 600,
+   "points": 305.0,
+   "wins": 19,
+   "chops": 572,
+   "losses": 9,
+   "avg_bb_per_deal": -0.049662
+  },
+  {
+   "name": "SmallBall05",
+   "matches": 600,
+   "points": 305.0,
+   "wins": 17,
+   "chops": 576,
+   "losses": 7,
+   "avg_bb_per_deal": -0.114321
+  },
+  {
+   "name": "DefensiveCaller07",
+   "matches": 600,
+   "points": 304.5,
+   "wins": 12,
+   "chops": 585,
+   "losses": 3,
+   "avg_bb_per_deal": 0.13265
+  },
+  {
+   "name": "TightValue03",
+   "matches": 600,
+   "points": 304.5,
+   "wins": 12,
+   "chops": 585,
+   "losses": 3,
+   "avg_bb_per_deal": 0.088583
+  },
+  {
+   "name": "DefensiveCaller10",
+   "matches": 600,
+   "points": 304.0,
+   "wins": 10,
+   "chops": 588,
+   "losses": 2,
+   "avg_bb_per_deal": 0.131175
+  },
+  {
+   "name": "PotOddsCaller08",
+   "matches": 600,
+   "points": 304.0,
+   "wins": 18,
+   "chops": 572,
+   "losses": 10,
+   "avg_bb_per_deal": 0.113133
+  },
+  {
+   "name": "BluffPressure09",
+   "matches": 600,
+   "points": 304.0,
+   "wins": 20,
+   "chops": 568,
+   "losses": 12,
+   "avg_bb_per_deal": 0.014825
+  },
+  {
+   "name": "TightValue05",
+   "matches": 600,
+   "points": 304.0,
+   "wins": 9,
+   "chops": 590,
+   "losses": 1,
+   "avg_bb_per_deal": -0.002112
+  },
+  {
+   "name": "BalancedField02",
+   "matches": 600,
+   "points": 304.0,
+   "wins": 17,
+   "chops": 574,
+   "losses": 9,
+   "avg_bb_per_deal": -0.034471
+  },
+  {
+   "name": "DrawChaser04",
+   "matches": 600,
+   "points": 303.5,
+   "wins": 19,
+   "chops": 569,
+   "losses": 12,
+   "avg_bb_per_deal": 0.150775
+  },
+  {
+   "name": "UncertaintyAware10",
+   "matches": 600,
+   "points": 303.5,
+   "wins": 12,
+   "chops": 583,
+   "losses": 5,
+   "avg_bb_per_deal": 0.102812
+  },
+  {
+   "name": "DrawChaser09",
+   "matches": 600,
+   "points": 303.5,
+   "wins": 19,
+   "chops": 569,
+   "losses": 12,
+   "avg_bb_per_deal": 0.045992
+  },
+  {
+   "name": "TrapValue02",
+   "matches": 600,
+   "points": 303.5,
+   "wins": 15,
+   "chops": 577,
+   "losses": 8,
+   "avg_bb_per_deal": 0.040379
+  },
+  {
+   "name": "TrapValue04",
+   "matches": 600,
+   "points": 303.5,
+   "wins": 14,
+   "chops": 579,
+   "losses": 7,
+   "avg_bb_per_deal": 0.040371
+  },
+  {
+   "name": "EquityValue02",
+   "matches": 600,
+   "points": 303.5,
+   "wins": 15,
+   "chops": 577,
+   "losses": 8,
+   "avg_bb_per_deal": 0.039379
+  },
+  {
+   "name": "TightValue06",
+   "matches": 600,
+   "points": 303.0,
+   "wins": 8,
+   "chops": 590,
+   "losses": 2,
+   "avg_bb_per_deal": 0.22605
+  },
+  {
+   "name": "TightValue10",
+   "matches": 600,
+   "points": 303.0,
+   "wins": 7,
+   "chops": 592,
+   "losses": 1,
+   "avg_bb_per_deal": 0.175796
+  },
+  {
+   "name": "TightValue07",
+   "matches": 600,
+   "points": 303.0,
+   "wins": 9,
+   "chops": 588,
+   "losses": 3,
+   "avg_bb_per_deal": 0.019333
+  },
+  {
+   "name": "ValueFirst",
+   "matches": 600,
+   "points": 302.5,
+   "wins": 22,
+   "chops": 561,
+   "losses": 17,
+   "avg_bb_per_deal": 0.0529
+  },
+  {
+   "name": "PreflopSelective10",
+   "matches": 600,
+   "points": 302.5,
+   "wins": 8,
+   "chops": 589,
+   "losses": 3,
+   "avg_bb_per_deal": 0.017367
+  },
+  {
+   "name": "DefensiveCaller05",
+   "matches": 600,
+   "points": 302.0,
+   "wins": 13,
+   "chops": 578,
+   "losses": 9,
+   "avg_bb_per_deal": 0.099762
+  },
+  {
+   "name": "UncertaintyAware06",
+   "matches": 600,
+   "points": 302.0,
+   "wins": 15,
+   "chops": 574,
+   "losses": 11,
+   "avg_bb_per_deal": 0.095013
+  },
+  {
+   "name": "TrapValue09",
+   "matches": 600,
+   "points": 302.0,
+   "wins": 13,
+   "chops": 578,
+   "losses": 9,
+   "avg_bb_per_deal": 0.086713
+  },
+  {
+   "name": "PotOddsCaller10",
+   "matches": 600,
+   "points": 302.0,
+   "wins": 15,
+   "chops": 574,
+   "losses": 11,
+   "avg_bb_per_deal": 0.044304
+  },
+  {
+   "name": "RangeMixer02",
+   "matches": 600,
+   "points": 302.0,
+   "wins": 18,
+   "chops": 568,
+   "losses": 14,
+   "avg_bb_per_deal": -0.036004
+  },
+  {
+   "name": "PotOddsCaller04",
+   "matches": 600,
+   "points": 301.5,
+   "wins": 18,
+   "chops": 567,
+   "losses": 15,
+   "avg_bb_per_deal": 0.110254
+  },
+  {
+   "name": "BlockerBluff",
+   "matches": 600,
+   "points": 301.5,
+   "wins": 20,
+   "chops": 563,
+   "losses": 17,
+   "avg_bb_per_deal": 0.032342
+  },
+  {
+   "name": "LateStreet06",
+   "matches": 600,
+   "points": 301.5,
+   "wins": 17,
+   "chops": 569,
+   "losses": 14,
+   "avg_bb_per_deal": -0.023208
+  },
+  {
+   "name": "DrawChaser05",
+   "matches": 600,
+   "points": 301.5,
+   "wins": 16,
+   "chops": 571,
+   "losses": 13,
+   "avg_bb_per_deal": -0.036663
+  },
+  {
+   "name": "TightValue09",
+   "matches": 600,
+   "points": 301.0,
+   "wins": 8,
+   "chops": 586,
+   "losses": 6,
+   "avg_bb_per_deal": 0.041883
+  },
+  {
+   "name": "RangeMixer06",
+   "matches": 600,
+   "points": 300.5,
+   "wins": 18,
+   "chops": 565,
+   "losses": 17,
+   "avg_bb_per_deal": 0.059371
+  },
+  {
+   "name": "LateStreet02",
+   "matches": 600,
+   "points": 300.5,
+   "wins": 16,
+   "chops": 569,
+   "losses": 15,
+   "avg_bb_per_deal": -0.008212
+  },
+  {
+   "name": "PotOddsCaller09",
+   "matches": 600,
+   "points": 300.5,
+   "wins": 19,
+   "chops": 563,
+   "losses": 18,
+   "avg_bb_per_deal": -0.024825
+  },
+  {
+   "name": "AdaptiveCall",
+   "matches": 600,
+   "points": 300.5,
+   "wins": 20,
+   "chops": 561,
+   "losses": 19,
+   "avg_bb_per_deal": -0.043129
+  },
+  {
+   "name": "BalancedField03",
+   "matches": 600,
+   "points": 300.5,
+   "wins": 13,
+   "chops": 575,
+   "losses": 12,
+   "avg_bb_per_deal": -0.090488
+  },
+  {
+   "name": "TrapValue06",
+   "matches": 600,
+   "points": 300.0,
+   "wins": 10,
+   "chops": 580,
+   "losses": 10,
+   "avg_bb_per_deal": 0.030246
+  },
+  {
+   "name": "SPRShove",
+   "matches": 600,
+   "points": 299.5,
+   "wins": 18,
+   "chops": 563,
+   "losses": 19,
+   "avg_bb_per_deal": -0.033313
+  },
+  {
+   "name": "BalancedField06",
+   "matches": 600,
+   "points": 299.5,
+   "wins": 17,
+   "chops": 565,
+   "losses": 18,
+   "avg_bb_per_deal": -0.046571
+  },
+  {
+   "name": "TrapValue03",
+   "matches": 600,
+   "points": 299.5,
+   "wins": 13,
+   "chops": 573,
+   "losses": 14,
+   "avg_bb_per_deal": -0.047467
+  },
+  {
+   "name": "PotOddsCaller07",
+   "matches": 600,
+   "points": 299.0,
+   "wins": 15,
+   "chops": 568,
+   "losses": 17,
+   "avg_bb_per_deal": -0.002479
+  },
+  {
+   "name": "BlockerPressure01",
+   "matches": 600,
+   "points": 299.0,
+   "wins": 13,
+   "chops": 572,
+   "losses": 15,
+   "avg_bb_per_deal": -0.154479
+  },
+  {
+   "name": "SmallBall01",
+   "matches": 600,
+   "points": 299.0,
+   "wins": 14,
+   "chops": 570,
+   "losses": 16,
+   "avg_bb_per_deal": -0.167958
+  },
+  {
+   "name": "PotOddsCaller01",
+   "matches": 600,
+   "points": 298.5,
+   "wins": 15,
+   "chops": 567,
+   "losses": 18,
+   "avg_bb_per_deal": -0.010104
+  },
+  {
+   "name": "PotOddsCaller02",
+   "matches": 600,
+   "points": 298.5,
+   "wins": 14,
+   "chops": 569,
+   "losses": 17,
+   "avg_bb_per_deal": -0.046779
+  },
+  {
+   "name": "PreflopSelective02",
+   "matches": 600,
+   "points": 298.5,
+   "wins": 14,
+   "chops": 569,
+   "losses": 17,
+   "avg_bb_per_deal": -0.132454
+  },
+  {
+   "name": "EquityValue03",
+   "matches": 600,
+   "points": 298.5,
+   "wins": 15,
+   "chops": 567,
+   "losses": 18,
+   "avg_bb_per_deal": -0.181908
+  },
+  {
+   "name": "PreflopSelective09",
+   "matches": 600,
+   "points": 298.5,
+   "wins": 9,
+   "chops": 579,
+   "losses": 12,
+   "avg_bb_per_deal": -0.218967
+  },
+  {
+   "name": "TrapValue01",
+   "matches": 600,
+   "points": 298.0,
+   "wins": 13,
+   "chops": 570,
+   "losses": 17,
+   "avg_bb_per_deal": 0.016154
+  },
+  {
+   "name": "BluffPressure06",
+   "matches": 600,
+   "points": 297.5,
+   "wins": 14,
+   "chops": 567,
+   "losses": 19,
+   "avg_bb_per_deal": -0.109854
+  },
+  {
+   "name": "PotShove05",
+   "matches": 600,
+   "points": 297.0,
+   "wins": 17,
+   "chops": 560,
+   "losses": 23,
+   "avg_bb_per_deal": -0.065554
+  },
+  {
+   "name": "DrawChaser07",
+   "matches": 600,
+   "points": 297.0,
+   "wins": 22,
+   "chops": 550,
+   "losses": 28,
+   "avg_bb_per_deal": -0.073967
+  },
+  {
+   "name": "PositionValue02",
+   "matches": 600,
+   "points": 297.0,
+   "wins": 14,
+   "chops": 566,
+   "losses": 20,
+   "avg_bb_per_deal": -0.106042
+  },
+  {
+   "name": "TrapValue10",
+   "matches": 600,
+   "points": 296.5,
+   "wins": 10,
+   "chops": 573,
+   "losses": 17,
+   "avg_bb_per_deal": -0.012846
+  },
+  {
+   "name": "FieldBalanced",
+   "matches": 600,
+   "points": 296.5,
+   "wins": 15,
+   "chops": 563,
+   "losses": 22,
+   "avg_bb_per_deal": -0.109333
+  },
+  {
+   "name": "BluffPressure02",
+   "matches": 600,
+   "points": 296.5,
+   "wins": 16,
+   "chops": 561,
+   "losses": 23,
+   "avg_bb_per_deal": -0.109846
+  },
+  {
+   "name": "PotShove01",
+   "matches": 600,
+   "points": 296.0,
+   "wins": 15,
+   "chops": 562,
+   "losses": 23,
+   "avg_bb_per_deal": -0.058858
+  },
+  {
+   "name": "PositionValue09",
+   "matches": 600,
+   "points": 296.0,
+   "wins": 10,
+   "chops": 572,
+   "losses": 18,
+   "avg_bb_per_deal": -0.248913
+  },
+  {
+   "name": "BluffPressure03",
+   "matches": 600,
+   "points": 296.0,
+   "wins": 12,
+   "chops": 568,
+   "losses": 20,
+   "avg_bb_per_deal": -0.253058
+  },
+  {
+   "name": "TrapValue05",
+   "matches": 600,
+   "points": 295.5,
+   "wins": 9,
+   "chops": 573,
+   "losses": 18,
+   "avg_bb_per_deal": -0.006092
+  },
+  {
+   "name": "PotOddsCaller05",
+   "matches": 600,
+   "points": 295.5,
+   "wins": 15,
+   "chops": 561,
+   "losses": 24,
+   "avg_bb_per_deal": -0.066696
+  },
+  {
+   "name": "UncertaintyAware05",
+   "matches": 600,
+   "points": 295.5,
+   "wins": 10,
+   "chops": 571,
+   "losses": 19,
+   "avg_bb_per_deal": -0.147021
+  },
+  {
+   "name": "EquityValue09",
+   "matches": 600,
+   "points": 295.0,
+   "wins": 12,
+   "chops": 566,
+   "losses": 22,
+   "avg_bb_per_deal": -0.215583
+  },
+  {
+   "name": "LateStreet03",
+   "matches": 600,
+   "points": 294.5,
+   "wins": 10,
+   "chops": 569,
+   "losses": 21,
+   "avg_bb_per_deal": -0.194317
+  },
+  {
+   "name": "PositionValue03",
+   "matches": 600,
+   "points": 293.5,
+   "wins": 11,
+   "chops": 565,
+   "losses": 24,
+   "avg_bb_per_deal": -0.121513
+  },
+  {
+   "name": "PositionValue05",
+   "matches": 600,
+   "points": 293.0,
+   "wins": 8,
+   "chops": 570,
+   "losses": 22,
+   "avg_bb_per_deal": -0.235367
+  },
+  {
+   "name": "Bluff",
+   "matches": 600,
+   "points": 293.0,
+   "wins": 12,
+   "chops": 562,
+   "losses": 26,
+   "avg_bb_per_deal": -0.353013
+  },
+  {
+   "name": "RangePressure",
+   "matches": 600,
+   "points": 292.0,
+   "wins": 17,
+   "chops": 550,
+   "losses": 33,
+   "avg_bb_per_deal": -0.055383
+  },
+  {
+   "name": "DrawChaser03",
+   "matches": 600,
+   "points": 292.0,
+   "wins": 16,
+   "chops": 552,
+   "losses": 32,
+   "avg_bb_per_deal": -0.130404
+  },
+  {
+   "name": "TrapValue07",
+   "matches": 600,
+   "points": 291.5,
+   "wins": 11,
+   "chops": 561,
+   "losses": 28,
+   "avg_bb_per_deal": -0.114175
+  },
+  {
+   "name": "UncertaintyAware01",
+   "matches": 600,
+   "points": 291.5,
+   "wins": 13,
+   "chops": 557,
+   "losses": 30,
+   "avg_bb_per_deal": -0.2819
+  },
+  {
+   "name": "ShortDeckPLO",
+   "matches": 600,
+   "points": 289.0,
+   "wins": 18,
+   "chops": 542,
+   "losses": 40,
+   "avg_bb_per_deal": -0.165
+  },
+  {
+   "name": "PositionValue01",
+   "matches": 600,
+   "points": 287.0,
+   "wins": 9,
+   "chops": 556,
+   "losses": 35,
+   "avg_bb_per_deal": -0.302596
+  },
+  {
+   "name": "PotOddsCaller03",
+   "matches": 600,
+   "points": 286.0,
+   "wins": 13,
+   "chops": 546,
+   "losses": 41,
+   "avg_bb_per_deal": -0.185075
+  },
+  {
+   "name": "EquityValue01",
+   "matches": 600,
+   "points": 285.5,
+   "wins": 10,
+   "chops": 551,
+   "losses": 39,
+   "avg_bb_per_deal": -0.350429
+  },
+  {
+   "name": "EquityValue05",
+   "matches": 600,
+   "points": 285.0,
+   "wins": 11,
+   "chops": 548,
+   "losses": 41,
+   "avg_bb_per_deal": -0.360483
+  },
+  {
+   "name": "AggressiveValue09",
+   "matches": 600,
+   "points": 284.5,
+   "wins": 13,
+   "chops": 543,
+   "losses": 44,
+   "avg_bb_per_deal": -0.201792
+  },
+  {
+   "name": "PreflopSelective01",
+   "matches": 600,
+   "points": 282.0,
+   "wins": 12,
+   "chops": 540,
+   "losses": 48,
+   "avg_bb_per_deal": -0.340017
+  },
+  {
+   "name": "BalancedField01",
+   "matches": 600,
+   "points": 282.0,
+   "wins": 11,
+   "chops": 542,
+   "losses": 47,
+   "avg_bb_per_deal": -0.357625
+  },
+  {
+   "name": "RangeMixer01",
+   "matches": 600,
+   "points": 281.5,
+   "wins": 10,
+   "chops": 543,
+   "losses": 47,
+   "avg_bb_per_deal": -0.359138
+  },
+  {
+   "name": "BalancedField05",
+   "matches": 600,
+   "points": 281.5,
+   "wins": 10,
+   "chops": 543,
+   "losses": 47,
+   "avg_bb_per_deal": -0.363596
+  },
+  {
+   "name": "LateStreet05",
+   "matches": 600,
+   "points": 280.0,
+   "wins": 10,
+   "chops": 540,
+   "losses": 50,
+   "avg_bb_per_deal": -0.363217
+  },
+  {
+   "name": "RangeMixer05",
+   "matches": 600,
+   "points": 278.0,
+   "wins": 11,
+   "chops": 534,
+   "losses": 55,
+   "avg_bb_per_deal": -0.389879
+  },
+  {
+   "name": "DrawChaser01",
+   "matches": 600,
+   "points": 277.0,
+   "wins": 12,
+   "chops": 530,
+   "losses": 58,
+   "avg_bb_per_deal": -0.312958
+  },
+  {
+   "name": "BluffPressure01",
+   "matches": 600,
+   "points": 276.5,
+   "wins": 8,
+   "chops": 537,
+   "losses": 55,
+   "avg_bb_per_deal": -0.475825
+  },
+  {
+   "name": "BluffPressure05",
+   "matches": 600,
+   "points": 276.0,
+   "wins": 10,
+   "chops": 532,
+   "losses": 58,
+   "avg_bb_per_deal": -0.469113
+  },
+  {
+   "name": "LateStreet01",
+   "matches": 600,
+   "points": 275.0,
+   "wins": 10,
+   "chops": 530,
+   "losses": 60,
+   "avg_bb_per_deal": -0.438587
+  },
+  {
+   "name": "PreflopSelective05",
+   "matches": 600,
+   "points": 267.5,
+   "wins": 6,
+   "chops": 523,
+   "losses": 71,
+   "avg_bb_per_deal": -0.502208
+  },
+  {
+   "name": "PositionPressure",
+   "matches": 600,
+   "points": 259.5,
+   "wins": 13,
+   "chops": 493,
+   "losses": 94,
+   "avg_bb_per_deal": -0.563304
+  },
+  {
+   "name": "AggressiveValue03",
+   "matches": 600,
+   "points": 259.5,
+   "wins": 11,
+   "chops": 497,
+   "losses": 92,
+   "avg_bb_per_deal": -0.613746
+  },
+  {
+   "name": "AggressiveValue05",
+   "matches": 600,
+   "points": 251.0,
+   "wins": 10,
+   "chops": 482,
+   "losses": 108,
+   "avg_bb_per_deal": -0.593533
+  },
+  {
+   "name": "Rock",
+   "matches": 600,
+   "points": 250.5,
+   "wins": 4,
+   "chops": 493,
+   "losses": 103,
+   "avg_bb_per_deal": -0.353696
+  },
+  {
+   "name": "Maniac",
+   "matches": 600,
+   "points": 231.0,
+   "wins": 3,
+   "chops": 456,
+   "losses": 141,
+   "avg_bb_per_deal": -2.443108
+  },
+  {
+   "name": "AggressiveValue01",
+   "matches": 600,
+   "points": 189.5,
+   "wins": 6,
+   "chops": 367,
+   "losses": 227,
+   "avg_bb_per_deal": -1.040271
+  },
+  {
+   "name": "PotControl",
+   "matches": 600,
+   "points": 124.0,
+   "wins": 8,
+   "chops": 232,
+   "losses": 360,
+   "avg_bb_per_deal": -0.551192
+  },
+  {
+   "name": "LooseAggressive",
+   "matches": 600,
+   "points": 98.5,
+   "wins": 6,
+   "chops": 185,
+   "losses": 409,
+   "avg_bb_per_deal": -2.113483
+  },
+  {
+   "name": "Random",
+   "matches": 600,
+   "points": 14.0,
+   "wins": 0,
+   "chops": 28,
+   "losses": 572,
+   "avg_bb_per_deal": -3.893117
+  },
+  {
+   "name": "CallingStation",
+   "matches": 600,
+   "points": 3.0,
+   "wins": 0,
+   "chops": 6,
+   "losses": 594,
+   "avg_bb_per_deal": -1.98295
+  }
+ ]
+}
