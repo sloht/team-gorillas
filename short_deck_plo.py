@@ -379,6 +379,56 @@ class _Hand:
             previous = level
 
 
+def play_hand(
+    first: object,
+    second: object,
+    *,
+    button: int,
+    deck: Sequence[Card],
+    starting_stack: int = 1_000,
+    small_blind: int = 5,
+    big_blind: int = 10,
+) -> tuple[int, int]:
+    """Play one heads-up hand from a prepared deck and return each seat's net chips.
+
+    Cards are popped from the end of `deck`: five rounds of hole cards starting
+    with the button, then the flop, turn and river. Use `deck_for_deal` to build
+    a deck that gives a chosen seat a chosen starting hand.
+    """
+    if button not in (0, 1):
+        raise ValueError("button must be 0 or 1.")
+    if len(deck) != len(DECK) or set(deck) != set(DECK):
+        raise ValueError("deck must be a permutation of the 36-card Short Deck.")
+    players = [
+        _Player(getattr(first, "name", type(first).__name__), first, starting_stack),
+        _Player(getattr(second, "name", type(second).__name__), second, starting_stack),
+    ]
+    _Hand(players, button, small_blind, big_blind, deck).play()
+    return (players[0].stack - starting_stack, players[1].stack - starting_stack)
+
+
+def deck_for_deal(
+    hands: Sequence[Sequence[Card]],
+    button: int,
+    rest: Sequence[Card],
+) -> list[Card]:
+    """Arrange a deck so seat i receives hands[i] and the board comes from `rest` in order.
+
+    `rest` must hold the 26 cards not in either hand; rest[0:3] is the flop,
+    rest[3] the turn and rest[4] the river.
+    """
+    if len(hands) != 2 or any(len(hand) != 5 for hand in hands):
+        raise ValueError("Two five-card hands are required.")
+    order: list[Card] = []
+    for index in range(5):
+        for seat in (button, 1 - button):
+            order.append(hands[seat][index])
+    order.extend(rest)
+    if len(order) != len(DECK) or set(order) != set(DECK):
+        raise ValueError("Hands and rest must together be the 36-card Short Deck.")
+    return order[::-1]
+
+
 def run_match(
     first: object,
     second: object,
@@ -528,6 +578,7 @@ def run_multi_seed_round_robin(
 
 __all__ = [
     "Action", "Card", "DECK", "MatchResult", "Observation", "Standing",
-    "omaha_rank", "rank_five", "run_match", "run_multi_seed_round_robin",
+    "deck_for_deal", "omaha_rank", "play_hand", "rank_five", "run_match",
+    "run_multi_seed_round_robin",
     "run_round_robin",
 ]
