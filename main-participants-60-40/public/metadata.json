@@ -1,0 +1,24 @@
+{
+  "conditions": [
+    "stable",
+    "short_history",
+    "drift",
+    "shared_change"
+  ],
+  "counts_per_condition": {
+    "test": 48,
+    "train": 24,
+    "validation": 24
+  },
+  "history": "Machine-specific interactions, lags up to 8, missing observations and changing regimes.",
+  "machines_per_episode": 8,
+  "max_points": 60,
+  "mode": "event",
+  "reference": "Pooled, strength=20, fitted separately on this round's training observations.",
+  "round": "main",
+  "season_id": "5fffdc4d0c700bbf61c3f911",
+  "suite_version": "experimentation-suite-v3",
+  "target": "Next-spin probabilities for 0x, 1x, 2x, 5x, 20x.",
+  "test_policy": "Test targets, conditions and reference predictions stay private.",
+  "warning": "Public demo seeds are reconstructable; event seeds are private."
+}
