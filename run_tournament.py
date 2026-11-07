@@ -1,4 +1,10 @@
-"""Run the built-in bots or plug in teams' Python bots for a round robin."""
+"""Run the built-in bots or plug in teams' Python bots for a round robin.
+
+Every match uses the official tournament rules and scoring (official_match.py):
+duplicate deals from game.make_deal, both seats, verdict from the official
+judge_engine.combine_halves (win 1 point, chop 0.5, loss 0). Standings rank by
+points, then average bb per deal.
+"""
 
 from __future__ import annotations
 
@@ -30,7 +36,9 @@ from poker_bots import (
     TrapValueBot,
     ValueFirstBot,
 )
-from short_deck_plo import run_multi_seed_round_robin
+import os
+
+from official_match import NUM_DEALS, run_round_robin
 
 
 REFERENCE_STRATEGIES = (
@@ -84,9 +92,10 @@ def _parse_seeds(value: str) -> tuple[int, ...]:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--all-strategies", action="store_true",
-                        help="Run the full 201-bot portfolio; defaults to one hand per matchup.")
+                        help="Run the full 201-bot portfolio; defaults to one deal per matchup.")
     parser.add_argument("--list-strategies", action="store_true",
                         help="List all available built-in strategy names and exit.")
     parser.add_argument(
@@ -94,13 +103,14 @@ def main() -> None:
         metavar="NAME=MODULE:CLASS",
         help="Add an external bot class; pass multiple times. If used, only supplied bots compete.",
     )
-    parser.add_argument("--hands", type=int, help="Hands per head-to-head match.")
-    parser.add_argument("--stack", type=int, default=1_000, help="Starting stack, in chips, each hand.")
-    parser.add_argument("--small-blind", type=int, default=5)
-    parser.add_argument("--big-blind", type=int, default=10)
+    parser.add_argument("--deals", type=int,
+                        help=f"Deals per duplicate match (each played from both seats). "
+                             f"Default: {NUM_DEALS}, like the tournament (1 with --all-strategies).")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--seeds", type=_parse_seeds,
                         help="Repeat the round robin across comma-separated independent seeds.")
+    parser.add_argument("--workers", type=int, default=1,
+                        help="Worker processes (Linux/macOS). Default: 1.")
     args = parser.parse_args()
 
     if (
@@ -119,43 +129,35 @@ def main() -> None:
 
     if args.all_strategies:
         competitors = ALL_BUILTIN_STRATEGIES
-        hands = args.hands if args.hands is not None else 1
+        deals = args.deals if args.deals is not None else 1
     else:
         competitors = args.bot or REFERENCE_STRATEGIES[:9]
-        hands = args.hands if args.hands is not None else 2_000
-    if hands <= 0:
-        parser.error("--hands must be positive.")
+        deals = args.deals if args.deals is not None else NUM_DEALS
+    if deals <= 0:
+        parser.error("--deals must be positive.")
 
     seeds = args.seeds or (args.seed,)
-    run_options = {
-        "hands_per_match": hands,
-        "starting_stack": args.stack,
-        "small_blind": args.small_blind,
-        "big_blind": args.big_blind,
-    }
-    standings = run_multi_seed_round_robin(
-        competitors, seeds=seeds, **run_options,
-    )
+    standings = run_round_robin(competitors, deals=deals, seeds=seeds,
+                                workers=args.workers or os.cpu_count() or 1)
 
     print(
-        f"Short Deck 5-Card PLO round robin: {hands} hands per matchup, "
-        f"{len(competitors)} strategies, seed(s) {', '.join(map(str, seeds))}"
+        f"Short Deck PLO5 round robin (official rules and scoring): {deals} duplicate deals "
+        f"per matchup, {len(competitors)} strategies, seed(s) {', '.join(map(str, seeds))}"
     )
     print(
-        f"{'Rank':>4}  {'Bot':<24} {'Matchup wins':>16} "
-        f"{'Match W-L-T':>13} {'Seed W% range':>13} "
-        f"{'Net chips':>12} {'Hand wins':>11}"
+        f"{'Rank':>4}  {'Bot':<24} {'Points':>12} {'W-C-L':>11} "
+        f"{'Seed pts range':>14} {'Avg bb/deal':>12}"
     )
     for rank, row in enumerate(standings, 1):
-        record = f"{row.match_wins}-{row.match_losses}-{row.match_ties}"
-        seed_range = row.seed_win_rate_range
+        record = f"{row.wins}-{row.chops}-{row.losses}"
+        seed_range = row.seed_point_rate_range
         seed_record = (
             f"{seed_range[0]:.0%}-{seed_range[1]:.0%}"
-            if seed_range is not None else "-"
+            if seed_range is not None and len(seeds) > 1 else "-"
         )
         print(
-            f"{rank:>4}  {row.name:<24} {row.match_wins:>16}/{row.matches:<1}"
-            f" {record:>13} {seed_record:>13} {row.net_chips:>12} {row.hand_wins:>11}"
+            f"{rank:>4}  {row.name:<24} {row.points:>7.1f}/{row.matches:<4}"
+            f" {record:>11} {seed_record:>14} {row.avg_bb_per_deal:>+12.3f}"
         )
 
 

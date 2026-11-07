@@ -4,7 +4,9 @@ import unittest
 from pathlib import Path
 
 from hand_strategy_search import canonical_hand, hand_key, parse_hand
-from short_deck_plo import Observation, deck_for_deal, play_hand, DECK
+from official_match import OfficialSeat, play_hand
+from official_rules import cards_to_official, game
+from short_deck_plo import DECK, Observation
 from super_bot import SuperBot, load_strategy_table
 
 
@@ -57,15 +59,19 @@ class SuperBotTests(unittest.TestCase):
         self.assertEqual(bot.strategy_for(self.maniac_hand), "Maniac")
 
     def test_switches_strategy_between_hands_in_a_real_hand(self):
-        bot = self._bot()
-        other = self._bot()
-        rest = [card for card in DECK if card not in self.maniac_hand][5:]
-        villain = [card for card in DECK if card not in self.maniac_hand][:5]
-        play_hand(bot, other, button=0, deck=deck_for_deal((self.maniac_hand, villain), 0, rest))
-        self.assertEqual(bot.current_strategy, "Maniac")
-        rest_two = [card for card in DECK if card not in villain and card not in self.maniac_hand]
-        play_hand(bot, other, button=1, deck=deck_for_deal((villain, self.maniac_hand), 1, rest_two))
-        self.assertEqual(bot.current_strategy, "CallingStation")
+        bot, other = OfficialSeat(self._bot()), OfficialSeat(self._bot())
+        rest = [card for card in DECK if card not in self.maniac_hand]
+        villain, board = rest[:5], rest[5:10]
+
+        def deal(seat0, seat1):
+            return game.Deal(hole_cards=(tuple(sorted(cards_to_official(seat0))),
+                                         tuple(sorted(cards_to_official(seat1)))),
+                             board=cards_to_official(board))
+
+        play_hand((bot, other), deal(self.maniac_hand, villain), button=0)
+        self.assertEqual(bot.bot.current_strategy, "Maniac")
+        play_hand((bot, other), deal(villain, self.maniac_hand), button=1)
+        self.assertEqual(bot.bot.current_strategy, "CallingStation")
 
     def test_missing_table_gives_clear_error(self):
         with self.assertRaises(FileNotFoundError):

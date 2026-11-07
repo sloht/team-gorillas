@@ -1,20 +1,25 @@
 """Find the most effective strategy for every Short Deck PLO starting hand.
 
+All play uses the official tournament rules (official/game.py, through
+official_match.py): 80-chip stacks, blinds 1/2, fold / check-call / half-pot
+raise / pot raise, official showdowns (three of a kind beats a straight).
+
 For each starting hand, every candidate ("hero") strategy is dealt that hand and
 plays heads-up against a field of opponent strategies. Each random seed fixes the
 opponent's cards and the board, and each deal is played twice with the button
 swapped. Every hero sees exactly the same deals (common random numbers), so the
 strategies are compared on identical situations. The strategy with the highest
-average net result, in big blinds per hand, is stored as the best strategy for
-that hand.
+average net result, in official big blinds per hand, is stored as the best
+strategy for that hand.
 
 Starting hands are grouped by suit symmetry by default: the 376,992 possible
 five-card hands collapse to 19,998 distinct hands, and each result applies to
 every suit relabelling of that hand. Pass --all-combos to test every raw combo.
 
 Only the top 40 strategies are compared per hand. A qualifying round robin of
-all 201 strategies picks them first, ranked like run_tournament.py (opponents
-beaten, then net chips).
+all 201 strategies picks them first. Each pairing is a duplicate match scored
+by the official judge (judge_engine.combine_halves): win 1 point, chop 0.5,
+loss 0. Strategies rank by points, then average bb per deal.
 
 The run is long, so it is built for a large machine:
 
@@ -61,7 +66,9 @@ from hand_keys import (  # re-exported for existing callers
     format_hand, hand_key, parse_hand,
 )
 from run_tournament import ALL_BUILTIN_STRATEGIES, REFERENCE_STRATEGIES
-from short_deck_plo import DECK, Card, deck_for_deal, play_hand, run_match
+from official_match import BIG_BLIND, OfficialSeat, match_record, play_hand, standings_from_records
+from official_rules import OFFICIAL_COMMIT, cards_to_official, evaluator, game
+from short_deck_plo import DECK, Card
 
 _STRATEGY_LOOKUP: dict[str, Callable[[], object]] = dict(ALL_BUILTIN_STRATEGIES)
 STRATEGY_SETS: dict[str, tuple[str, ...]] = {
@@ -102,10 +109,8 @@ class SearchConfig:
     opponents: tuple[str, ...]
     seeds: tuple[int, ...]
     deals_per_seed: int
-    starting_stack: int
-    small_blind: int
-    big_blind: int
     all_combos: bool
+    rules: str = f"official heads-up-bundle {OFFICIAL_COMMIT}"
 
     @property
     def hands_per_strategy(self) -> int:
@@ -180,37 +185,39 @@ def evaluate_hand(
 ) -> dict[str, list[float]]:
     """Play `hand` with every hero strategy and return {hero: [hands, sum_bb, sum_sq_bb]}.
 
-    Results are in big blinds per hand from the hero's point of view.
+    Every hand is an official game.Game: the hero sits in seat 0 holding `hand`,
+    the opponent in seat 1 holding a random five cards, with a random board.
+    Results are official big blinds (2 chips) per hand, from the hero's side.
     """
     heroes = heroes or {name: _STRATEGY_LOOKUP[name]() for name in config.heroes}
     opponents = opponents or {name: _STRATEGY_LOOKUP[name]() for name in config.opponents}
+    hero_seats = {name: OfficialSeat(bot) for name, bot in heroes.items()}
+    opponent_seats = {name: OfficialSeat(bot) for name, bot in opponents.items()}
     hero_hand = tuple(hand)
     key = hand_key(hero_hand)
+    hero_cards = tuple(sorted(cards_to_official(hero_hand)))
     unseen = [card for card in DECK if card not in set(hero_hand)]
     stats = {name: [0, 0.0, 0.0] for name in config.heroes}
 
     for seed in config.seeds:
-        for deal in range(config.deals_per_seed):
-            deal_seed = _deal_seed(seed, key, deal)
+        for deal_number in range(config.deals_per_seed):
+            deal_seed = _deal_seed(seed, key, deal_number)
             cards = unseen[:]
             random.Random(deal_seed).shuffle(cards)
-            villain_hand, rest = tuple(cards[:5]), cards[5:]
+            deal = game.Deal(
+                hole_cards=(hero_cards, tuple(sorted(cards_to_official(cards[:5])))),
+                board=cards_to_official(cards[5:10]),
+            )
             for button in (0, 1):
-                deck = deck_for_deal((hero_hand, villain_hand), button, rest)
                 for opponent_name in config.opponents:
-                    opponent = opponents[opponent_name]
+                    opponent = opponent_seats[opponent_name]
                     for hero_name in config.heroes:
-                        hero = heroes[hero_name]
+                        hero = hero_seats[hero_name]
                         # Same bot randomness for every hero on the same deal.
                         hero.set_seed(deal_seed + button)
                         opponent.set_seed(deal_seed + button + 1_000_003)
-                        hero_net, _ = play_hand(
-                            hero, opponent, button=button, deck=deck,
-                            starting_stack=config.starting_stack,
-                            small_blind=config.small_blind,
-                            big_blind=config.big_blind,
-                        )
-                        result = hero_net / config.big_blind
+                        finished = play_hand((hero, opponent), deal, button)
+                        result = finished.result().nets[0] / BIG_BLIND
                         row = stats[hero_name]
                         row[0] += 1
                         row[1] += result
@@ -244,34 +251,24 @@ def _work(task: tuple[tuple[Card, ...], int]) -> dict:
 # --------------------------------------------------------------------------- #
 
 def _qualify_work(task: tuple) -> dict:
-    left, right, seed, hands, stack, small_blind, big_blind = task
-    result = run_match(_STRATEGY_LOOKUP[left](), _STRATEGY_LOOKUP[right](), hands=hands,
-                       starting_stack=stack, small_blind=small_blind,
-                       big_blind=big_blind, seed=seed)
-    return {"left": left, "right": right, "seed": seed, "net": list(result.net_chips)}
+    left, right, seed, deals = task
+    return match_record(left, right, _STRATEGY_LOOKUP[left](), _STRATEGY_LOOKUP[right](),
+                        seed, deals)
 
 
 def rank_qualifiers(matches: Iterable[dict], pool: Sequence[str]) -> list[dict]:
-    """Rank strategies like run_tournament.py: opponents beaten first, then net chips.
+    """Rank like the official tournament: points (win 1, chop 0.5, loss 0), then
+    average bb per deal over all matches, then name.
 
-    Each finished match is one (pairing, seed) result. Names tie-break alphabetically.
+    Each match is one duplicate match (one pairing on one seed), with the
+    verdict from the official judge_engine.combine_halves().
     """
-    table = {name: {"name": name, "matches": 0, "match_wins": 0, "match_losses": 0,
-                    "match_ties": 0, "net_chips": 0} for name in pool}
-    for match in matches:
-        left, right = table[match["left"]], table[match["right"]]
-        left_net, right_net = match["net"]
-        for row, own, other in ((left, left_net, right_net), (right, right_net, left_net)):
-            row["matches"] += 1
-            row["net_chips"] += own
-            if own > other:
-                row["match_wins"] += 1
-            elif own < other:
-                row["match_losses"] += 1
-            else:
-                row["match_ties"] += 1
-    return sorted(table.values(),
-                  key=lambda row: (-row["match_wins"], -row["net_chips"], row["name"]))
+    return [
+        {"name": row.name, "matches": row.matches, "points": row.points, "wins": row.wins,
+         "chops": row.chops, "losses": row.losses,
+         "avg_bb_per_deal": round(row.avg_bb_per_deal, 6)}
+        for row in standings_from_records(matches, pool)
+    ]
 
 
 def load_qualified(out: str | Path, path: Optional[str | Path] = None) -> tuple[str, ...]:
@@ -290,17 +287,17 @@ def command_qualify(args: argparse.Namespace) -> None:
     pool = args.pool
     if args.top < 1:
         raise SystemExit("--top must be at least 1.")
-    if args.hands < 1:
-        raise SystemExit("--hands must be at least 1.")
-    settings = {"pool": list(pool), "seeds": list(args.seeds), "hands_per_match": args.hands,
-                "starting_stack": args.stack, "small_blind": args.small_blind,
-                "big_blind": args.big_blind}
+    if args.deals < 1:
+        raise SystemExit("--deals must be at least 1.")
+    settings = {"pool": list(pool), "seeds": list(args.seeds), "deals_per_match": args.deals,
+                "scoring": "official duplicate (judge_engine.combine_halves)",
+                "rules": f"official heads-up-bundle {OFFICIAL_COMMIT}"}
     pairings = [(pool[i], pool[j]) for i in range(len(pool)) for j in range(i + 1, len(pool))]
     total_matches = len(pairings) * len(args.seeds)
     print(f"Qualifying: {len(pool)} strategies, {len(pairings):,} pairings x "
-          f"{len(args.seeds)} seeds x {args.hands} hands = "
-          f"{total_matches * args.hands:,} poker hands; keeping the top {args.top}.",
-          file=sys.stderr)
+          f"{len(args.seeds)} seeds = {total_matches:,} duplicate matches of "
+          f"{args.deals} deals x 2 seats = {total_matches * args.deals * 2:,} poker hands; "
+          f"keeping the top {args.top}.", file=sys.stderr)
     if args.estimate_only:
         return
 
@@ -333,13 +330,14 @@ def command_qualify(args: argparse.Namespace) -> None:
                     finished[(match["left"], match["right"], match["seed"])] = match
                 except (json.JSONDecodeError, KeyError):
                     continue
-    tasks = [(left, right, seed, args.hands, args.stack, args.small_blind, args.big_blind)
+    tasks = [(left, right, seed, args.deals)
              for seed in args.seeds for left, right in pairings
              if (left, right, seed) not in finished]
     print(f"  {len(finished):,} matches already done, {len(tasks):,} to go.", file=sys.stderr)
 
     if tasks:
         workers = args.workers or os.cpu_count() or 1
+        evaluator.warmup()  # build the official table once; forked workers share it
         started = time.time()
         with matches_path.open("a") as handle:
             pool_ = None
@@ -371,8 +369,9 @@ def command_qualify(args: argparse.Namespace) -> None:
         indent=1))
     print(f"Top {len(qualified)} written to {out / QUALIFIERS_FILE}:")
     for place, row in enumerate(ranking[:args.top], 1):
-        print(f"  {place:>3}. {row['name']:<24} beat {row['match_wins']:>4} of "
-              f"{row['matches']:<4} net {row['net_chips']:+,}")
+        print(f"  {place:>3}. {row['name']:<24} {row['points']:>6.1f} points from "
+              f"{row['matches']} matches (W{row['wins']} C{row['chops']} L{row['losses']}), "
+              f"{row['avg_bb_per_deal']:+.3f} bb/deal")
 
 
 # --------------------------------------------------------------------------- #
@@ -392,16 +391,11 @@ def _resolve_heroes(args: argparse.Namespace) -> tuple[str, ...]:
 def _config_from_args(args: argparse.Namespace) -> SearchConfig:
     if args.deals_per_seed < 1:
         raise SystemExit("--deals-per-seed must be at least 1.")
-    if args.small_blind <= 0 or args.big_blind < args.small_blind or args.stack <= 0:
-        raise SystemExit("Stack and blinds must be positive, with big blind >= small blind.")
     return SearchConfig(
         heroes=_resolve_heroes(args),
         opponents=args.opponents,
         seeds=args.seeds,
         deals_per_seed=args.deals_per_seed,
-        starting_stack=args.stack,
-        small_blind=args.small_blind,
-        big_blind=args.big_blind,
         all_combos=args.all_combos,
     )
 
@@ -467,6 +461,7 @@ def command_run(args: argparse.Namespace) -> None:
         return
 
     workers = args.workers or os.cpu_count() or 1
+    evaluator.warmup()  # build the official table once; forked workers share it
     started = time.time()
     with shard_path.open("a") as handle:
         if workers == 1:
@@ -643,9 +638,6 @@ def build_parser() -> argparse.ArgumentParser:
                              help="Random seeds, e.g. '1-10' or '1,2,42'. Default: 1-5.")
         command.add_argument("--deals-per-seed", type=int, default=2,
                              help="Different opponent hands and boards per seed. Default: 2.")
-        command.add_argument("--stack", type=int, default=1_000)
-        command.add_argument("--small-blind", type=int, default=5)
-        command.add_argument("--big-blind", type=int, default=10)
         command.add_argument("--all-combos", action="store_true",
                              help="Test all 376,992 raw hands instead of 19,998 suit-distinct ones.")
         command.add_argument("--shard", type=parse_shard, default=(0, 1),
@@ -670,11 +662,9 @@ def build_parser() -> argparse.ArgumentParser:
     qualify.add_argument("--seeds", type=parse_seeds, default="1001-1003",
                          help="Round-robin seeds; keep them apart from the search seeds. "
                               "Default: 1001-1003.")
-    qualify.add_argument("--hands", type=int, default=50,
-                         help="Hands per match (per pairing per seed). Default: 50.")
-    qualify.add_argument("--stack", type=int, default=1_000)
-    qualify.add_argument("--small-blind", type=int, default=5)
-    qualify.add_argument("--big-blind", type=int, default=10)
+    qualify.add_argument("--deals", type=int, default=200,
+                         help="Deals per duplicate match; each is played from both seats. "
+                              "The tournament uses 1000. Default: 200.")
     qualify.add_argument("--out", default="hand_strategy_results", help="Results folder.")
     qualify.add_argument("--workers", type=int, help="Worker processes. Default: every CPU core.")
     qualify.add_argument("--force", action="store_true",

@@ -9,7 +9,10 @@ from functools import lru_cache
 from hashlib import blake2b
 from typing import Optional
 
-from short_deck_plo import Action, DECK, Card, Observation, omaha_rank
+from official_rules import cards_to_official, evaluator, to_official
+from short_deck_plo import Action, DECK, Card, Observation
+
+omaha_score = evaluator.omaha_score  # official showdown scoring (trips beat straights)
 
 
 def estimate_equity(
@@ -17,7 +20,10 @@ def estimate_equity(
     *,
     samples: int = 24,
 ) -> float:
-    """Estimate showdown equity by sampling legal opponent hands and future board cards."""
+    """Estimate showdown equity by sampling opponent hands and future board cards.
+
+    Each sample is scored with the official evaluator (evaluator.omaha_score).
+    """
     if samples <= 0:
         raise ValueError("samples must be positive.")
     if observation.opponents <= 0:
@@ -42,23 +48,27 @@ def _cached_equity(
     seed = int.from_bytes(blake2b(state, digest_size=8).digest(), "big")
     random_source = random.Random(seed)
     known = set(hole) | set(board)
+    # Sample in the team card order (keeps the draws stable), score officially.
     remaining = [card for card in DECK if card not in known]
     missing_board = 5 - len(board)
     draw_count = missing_board + opponents * 5
     if draw_count > len(remaining):
         raise ValueError("Not enough unseen cards for the requested opponent count.")
+    official_hole = cards_to_official(hole)
+    official_board = cards_to_official(board)
+    official_remaining = {card: to_official(card) for card in remaining}
 
     equity = 0.0
     for _ in range(samples):
-        draw = random_source.sample(remaining, draw_count)
-        final_board = (*board, *draw[:missing_board])
-        hero_rank = omaha_rank(hole, final_board)
+        draw = [official_remaining[card] for card in random_source.sample(remaining, draw_count)]
+        final_board = (*official_board, *draw[:missing_board])
+        hero_rank = omaha_score(official_hole, final_board)
         opponent_ranks = []
         cursor = missing_board
         for _ in range(opponents):
             opponent_hole = draw[cursor:cursor + 5]
             cursor += 5
-            opponent_ranks.append(omaha_rank(opponent_hole, final_board))
+            opponent_ranks.append(omaha_score(opponent_hole, final_board))
         best = max((hero_rank, *opponent_ranks))
         if hero_rank == best:
             equity += 1.0 / (1 + sum(rank == best for rank in opponent_ranks))

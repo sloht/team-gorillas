@@ -10,7 +10,7 @@ Use it in a round robin like any team bot:
     python3 run_tournament.py \\
         --bot Super=super_bot:SuperBot \\
         --bot ShortDeckPLO=poker_bots:ShortDeckPLOBot \\
-        --hands 2000 --seed 42
+        --deals 1000 --seed 42
 
 By default the table is read from ./hand_strategy_results; set the
 SUPER_BOT_TABLE environment variable to point somewhere else (a results folder

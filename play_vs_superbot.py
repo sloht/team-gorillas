@@ -1,4 +1,4 @@
-"""Play heads-up Short Deck PLO against SuperBot in your browser.
+"""Play heads-up Short Deck PLO5 against SuperBot in your browser, under the official rules.
 
     python3 play_vs_superbot.py                         # uses ./hand_strategy_results
     python3 play_vs_superbot.py --table path/to/results
@@ -7,11 +7,12 @@
 This opens http://127.0.0.1:8765. It only reads the saved strategy table; it
 never imports or runs hand_strategy_search.py.
 
-How it works: each hand runs in the real engine (short_deck_plo.play_hand) on
-a background thread. Your seat is a HumanBot whose act() waits for the action
-you click in the browser. The page polls /api/state and sends actions to
-/api/action. Stacks reset every hand and the button alternates, as in
-run_match.
+How it works: every hand is an official game.Game (80-chip stacks, blinds
+1/2, fold / check-call / half-pot raise / pot raise, at most 4 raises per
+street). Deals come from game.make_deal(session seed, hand number) and the
+button alternates, like one half of a tournament match. You are seat 0. The
+bot plays through official_match.OfficialSeat. The page polls /api/state and
+posts your action to /api/action.
 """
 
 from __future__ import annotations
@@ -19,8 +20,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import queue
-import random
+import secrets
 import threading
 import time
 import webbrowser
@@ -29,254 +29,204 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Callable, Optional
 
-from hand_keys import format_card
+from official_match import OfficialSeat
+from official_rules import evaluator, game
 from poker_bots import PokerBot
 from run_tournament import ALL_BUILTIN_STRATEGIES
-from short_deck_plo import DECK, Action, Observation, play_hand
 
 PAGE = Path(__file__).with_name("play_vs_superbot.html")
 HUMAN, BOT = 0, 1
-STREETS = {0: "Preflop", 3: "Flop", 4: "Turn", 5: "River"}
+STREETS = {game.Street.PREFLOP: "Preflop", game.Street.FLOP: "Flop",
+           game.Street.TURN: "Turn", game.Street.RIVER: "River"}
+Action = game.Action
 
 
 def _cards(cards) -> list[str]:
-    return [format_card(card) for card in cards]
+    return [evaluator.card_to_str(card) for card in cards]
 
 
-def validate_action(observation: Observation, kind: str, amount: int = 0) -> Action:
-    """Turn a browser request into a legal Action or raise ValueError with a reason."""
-    call = observation.call_amount
-    if kind == "fold":
-        if not call:
-            raise ValueError("Checking is free, so there is nothing to fold to.")
-        return Action.fold()
-    if kind == "check":
-        if call:
-            raise ValueError(f"You face a bet of {call}; call, raise or fold.")
-        return Action.check()
-    if kind == "call":
-        if not call:
-            raise ValueError("There is no bet to call; check instead.")
-        return Action.call()
-    if kind in ("bet", "raise"):
-        if not observation.can_raise:
-            raise ValueError("You cannot raise here.")
-        expected = "raise" if observation.current_bet else "bet"
-        if kind != expected:
-            raise ValueError(f"There is {'a' if expected == 'raise' else 'no'} bet to face; "
-                             f"use {expected}.")
-        if not isinstance(amount, int) or isinstance(amount, bool):
-            raise ValueError("The amount must be a whole number of chips.")
-        lowest = min(observation.min_raise_to, observation.max_raise_to)
-        if not lowest <= amount <= observation.max_raise_to:
-            raise ValueError(f"{expected.title()} to between {lowest} and "
-                             f"{observation.max_raise_to}.")
-        return Action.raise_to(amount) if expected == "raise" else Action.bet_to(amount)
-    raise ValueError(f"Unknown action {kind!r}.")
+def parse_action(kind: str, legal) -> "game.Action":
+    """Turn the browser's action name into a legal official Action, or raise ValueError."""
+    try:
+        action = Action[str(kind)]
+    except KeyError:
+        raise ValueError(f"Unknown action {kind!r}; use FOLD, CHECK_CALL, RAISE_HALF or "
+                         "RAISE_POT.") from None
+    if action not in legal:
+        names = ", ".join(a.name for a in legal)
+        raise ValueError(f"{action.name} is not allowed now; you can {names}.")
+    return action
 
 
 class Table:
-    """Shared state between the engine thread and the web requests."""
+    """One player session against one bot. Thread-safe."""
 
     def __init__(self, opponent_factory: Callable[[], PokerBot], opponent_label: str, *,
-                 starting_stack: int = 1_000, small_blind: int = 5, big_blind: int = 10,
-                 seed: Optional[int] = None, bot_delay: float = 0.7) -> None:
+                 seed: Optional[str] = None, bot_delay: float = 0.7) -> None:
         self.lock = threading.Lock()
         self.opponent = opponent_factory()
+        self.seat = OfficialSeat(self.opponent)
         self.opponent_label = opponent_label
-        self.starting_stack = starting_stack
-        self.small_blind = small_blind
-        self.big_blind = big_blind
+        self.session_seed = str(seed) if seed is not None else secrets.token_hex(8)
+        self.seat.set_seed(int.from_bytes(self.session_seed.encode()[:8].ljust(8, b"0"), "big"))
         self.bot_delay = bot_delay
-        self.rng = random.Random(seed)
-        if hasattr(self.opponent, "set_seed"):
-            self.opponent.set_seed(self.rng.randrange(2**31))
-        self.actions: "queue.Queue[Action]" = queue.Queue()
         self.hands_played = 0
         self.session_net = 0
-        self.history: list[int] = []
-        self._reset_hand_view()
         self.status = "idle"
-
-    # ---- view kept up to date from every observation ----------------------
-
-    def _reset_hand_view(self) -> None:
+        self.hand: Optional[game.Game] = None
         self.log: list[dict] = []
-        self.board: tuple = ()
-        self.pot = 0
-        self.stacks = [self.starting_stack, self.starting_stack]
-        self.street_bets = [0, 0]
-        self.human_hole: tuple = ()
-        self.pending: Optional[Observation] = None
         self.result: Optional[dict] = None
         self.error: Optional[str] = None
-        self.button = 0
-        self.folded: Optional[int] = None
 
-    def _observe(self, seat: int, observation: Observation) -> None:
-        own_total = self.starting_stack - observation.stack
-        other_total = observation.pot - own_total
-        self.board = observation.board
-        self.pot = observation.pot
-        self.stacks[seat] = observation.stack
-        self.stacks[1 - seat] = self.starting_stack - other_total
-        self.street_bets[seat] = observation.street_contribution
-        # Whoever is not acting has put in the current bet on this street.
-        self.street_bets[1 - seat] = observation.current_bet
-
-    def _record(self, seat: int, observation: Observation, action: Action) -> None:
-        who = "You" if seat == HUMAN else self.opponent_label
-        if action.kind == "call":
-            paid = min(observation.call_amount, observation.stack)
-            text = f"{who} call{'s' if seat else ''} {paid}"
-        elif action.kind in ("bet", "raise"):
-            all_in = action.amount - observation.street_contribution >= observation.stack
-            verb = action.kind + ("s" if seat else "")
-            text = f"{who} {verb} to {action.amount}" + (" (all-in)" if all_in else "")
-        else:
-            text = f"{who} {action.kind}{'s' if seat else ''}"
-        if action.kind == "fold":
-            self.folded = seat
-        self.log.append({"street": STREETS[len(observation.board)], "seat": seat, "text": text})
-
-    # ---- the two players ---------------------------------------------------
-
-    @staticmethod
-    def _round_already_closed(observation: Observation) -> bool:
-        """The engine re-asks a bettor after being called; checking is the only move.
-
-        _betting_round rebuilds the to-act list with _clockwise(seat), which in
-        heads-up includes the bettor. No chips can move on that turn, so the UI
-        answers it with a check and does not show or log it.
-        """
-        return (not observation.call_amount and not observation.can_raise
-                and observation.current_bet > 0
-                and observation.street_contribution == observation.current_bet)
-
-    def human_act(self, observation: Observation) -> Action:
-        if self._round_already_closed(observation):
-            return Action.check()
-        with self.lock:
-            self._observe(HUMAN, observation)
-            self.pending = observation
-            self.status = "your_turn"
-        action = self.actions.get()
-        with self.lock:
-            self._record(HUMAN, observation, action)
-            self.pending = None
-            self.status = "bot_thinking"
-        return action
-
-    def bot_act(self, observation: Observation) -> Action:
-        if self._round_already_closed(observation):
-            return self.opponent.act(observation)  # still asked, so its state stays as in tournaments
-        with self.lock:
-            self._observe(BOT, observation)
-            self.status = "bot_thinking"
-        if self.bot_delay:
-            time.sleep(self.bot_delay)
-        action = self.opponent.act(observation)
-        with self.lock:
-            self._record(BOT, observation, action)
-        return action
-
-    # ---- hands -------------------------------------------------------------
+    # ---- playing -----------------------------------------------------------
 
     def start_hand(self) -> None:
         with self.lock:
             if self.status not in ("idle", "hand_over"):
                 raise ValueError("Finish the current hand first.")
-            self._reset_hand_view()
-            self.button = self.hands_played % 2
-            self.status = "dealing"
-            deck = list(DECK)
-            self.rng.shuffle(deck)
-            # Cards are popped from the end, alternating from the button.
-            order = deck[::-1]
-            holes = {self.button: order[0:10:2], 1 - self.button: order[1:10:2]}
-            self.human_hole = tuple(holes[HUMAN])
-            self._bot_hole = tuple(holes[BOT])
-            self._full_board = tuple(order[10:15])
-            while not self.actions.empty():
-                self.actions.get_nowait()
-        threading.Thread(target=self._play, args=(deck,), daemon=True).start()
-
-    def _play(self, deck: list) -> None:
-        human = _Seat(self.human_act, "You")
-        bot = _Seat(self.bot_act, self.opponent_label)
-        try:
-            net = play_hand(human, bot, button=self.button, deck=deck,
-                            starting_stack=self.starting_stack,
-                            small_blind=self.small_blind, big_blind=self.big_blind)
-        except Exception as error:  # surface engine errors in the page
-            with self.lock:
-                self.error = f"The hand stopped with an error: {error}"
-                self.status = "hand_over"
-            return
-        with self.lock:
-            showdown = self.folded is None
-            if showdown:
-                self.board = self._full_board
-            self.stacks = [self.starting_stack + net[HUMAN], self.starting_stack + net[BOT]]
-            self.pot = abs(net[HUMAN])  # shown as "changed hands" once the hand is over
-            self.street_bets = [0, 0]
-            self.hands_played += 1
-            self.session_net += net[HUMAN]
-            self.history.append(net[HUMAN])
-            if net[HUMAN] > 0:
-                headline = f"You win {net[HUMAN]} chips"
-            elif net[HUMAN] < 0:
-                headline = f"{self.opponent_label} wins {-net[HUMAN]} chips"
-            else:
-                headline = "Split pot"
-            how = ("at showdown" if showdown
-                   else "- you folded" if self.folded == HUMAN
-                   else f"- {self.opponent_label} folded")
-            self.result = {
-                "net": net[HUMAN],
-                "headline": f"{headline} {how}",
-                "showdown": showdown,
-                "bot_hole": _cards(self._bot_hole) if showdown else None,
-                "strategy": getattr(self.opponent, "current_strategy", None),
-            }
-            self.status = "hand_over"
-
-    def submit(self, kind: str, amount: int = 0) -> None:
-        with self.lock:
-            if self.status != "your_turn" or self.pending is None:
-                raise ValueError("It is not your turn.")
-            action = validate_action(self.pending, kind, amount)
+            number = self.hands_played
+            self.hand = game.Game(game.make_deal(self.session_seed, number),
+                                  game.button_for_deal(number), hand_index=number)
+            you_post = game.SMALL_BLIND if self.hand.button_seat == HUMAN else game.BIG_BLIND
+            bot_posts = game.BIG_BLIND + game.SMALL_BLIND - you_post
+            self.log = [{"street": "Preflop", "seat": -1,
+                         "text": f"You post {you_post}, {self.opponent_label} posts {bot_posts}"}]
+            self.result = None
+            self.error = None
             self.status = "bot_thinking"
-        self.actions.put(action)
+        self._continue()
+
+    def submit(self, kind: str) -> None:
+        with self.lock:
+            if self.status != "your_turn" or self.hand is None:
+                raise ValueError("It is not your turn.")
+            action = parse_action(kind, self.hand.legal_actions())
+            self._apply(HUMAN, action)
+            self.status = "bot_thinking"
+        self._continue()
+
+    def _continue(self) -> None:
+        threading.Thread(target=self._run_bot, daemon=True).start()
+
+    def _run_bot(self) -> None:
+        """Let the bot act until it is your turn or the hand ends."""
+        while True:
+            with self.lock:
+                hand = self.hand
+                if hand.is_terminal:
+                    self._finish()
+                    return
+                if hand.to_act == HUMAN:
+                    self.status = "your_turn"
+                    return
+                observation = hand.observation(BOT)
+            if self.bot_delay:
+                time.sleep(self.bot_delay)
+            try:
+                action = self.seat.act(observation)
+            except Exception as error:  # show bot crashes in the page, then check or fold
+                action = game.default_action(observation.to_call)
+                with self.lock:
+                    self.error = f"{self.opponent_label} crashed ({error}); it checks or folds."
+            with self.lock:
+                self._apply(BOT, action)
+
+    def _apply(self, seat: int, action: "game.Action") -> None:
+        hand = self.hand
+        facing_bet = hand.observation(seat).to_call > 0 or hand.street == game.Street.PREFLOP
+        hand.apply(action)
+        record = hand.history[-1]
+        who = "You" if seat == HUMAN else self.opponent_label
+        s = "" if seat == HUMAN else "s"
+        if action == Action.FOLD:
+            text = f"{who} fold{s}"
+        elif action == Action.CHECK_CALL:
+            text = f"{who} call{s} {record.amount}" if record.amount else f"{who} check{s}"
+        else:
+            verb = ("raise" if facing_bet else "bet") + s
+            size = "half pot" if action == Action.RAISE_HALF else "pot"
+            text = f"{who} {verb} to {record.street_total} ({size})"
+            if hand.stacks[seat] == 0:
+                text += ", all-in"
+        self.log.append({"street": STREETS[record.street], "seat": seat, "text": text})
+
+    def _finish(self) -> None:
+        result = self.hand.result()
+        net = result.nets[HUMAN]
+        self.hands_played += 1
+        self.session_net += net
+        if net > 0:
+            headline = f"You win {net} chips"
+        elif net < 0:
+            headline = f"{self.opponent_label} wins {-net} chips"
+        else:
+            headline = "Split pot"
+        last = result.history[-1] if result.history else None
+        if result.went_to_showdown:
+            how = "at showdown"
+        elif last is not None and last.seat == HUMAN:
+            how = "- you folded"
+        else:
+            how = f"- {self.opponent_label} folded"
+        showdown = None
+        if result.went_to_showdown:
+            board = self.hand.deal.board
+            scores = [evaluator.omaha_score(self.hand.deal.hole_cards[s], board) for s in (0, 1)]
+            showdown = {"you": evaluator.category_name(scores[HUMAN]),
+                        "bot": evaluator.category_name(scores[BOT])}
+        self.result = {
+            "net": net,
+            "headline": f"{headline} {how}",
+            "showdown": result.went_to_showdown,
+            "hands": showdown,
+            "bot_hole": _cards(self.hand.deal.hole_cards[BOT]) if result.went_to_showdown else None,
+            "strategy": getattr(self.opponent, "current_strategy", None),
+            "pot": result.pot,
+        }
+        self.status = "hand_over"
+
+    # ---- view --------------------------------------------------------------
 
     def state(self) -> dict:
         with self.lock:
-            pending = self.pending
+            hand = self.hand
+            view = hand.observation(HUMAN) if hand is not None else None
             to_act = None
-            if pending is not None:
+            if self.status == "your_turn" and view is not None:
+                legal = view.legal_actions
                 to_act = {
-                    "call_amount": min(pending.call_amount, pending.stack),
-                    "current_bet": pending.current_bet,
-                    "street_contribution": pending.street_contribution,
-                    "can_raise": pending.can_raise,
-                    "raise_kind": "raise" if pending.current_bet else "bet",
-                    "min_raise_to": min(pending.min_raise_to, pending.max_raise_to),
-                    "max_raise_to": pending.max_raise_to,
-                    "all_in_to": pending.street_contribution + pending.stack,
-                    "pot": pending.pot,
+                    "legal": [a.name for a in legal],
+                    "call_amount": min(view.to_call, view.my_stack),
+                    "raise_half_to": view.raise_to.get(Action.RAISE_HALF),
+                    "raise_pot_to": view.raise_to.get(Action.RAISE_POT),
+                    "all_in_to": view.my_bet + view.my_stack,
+                    "raises_this_street": view.raises_this_street,
+                    "raise_cap": game.RAISE_CAP_PER_STREET,
                 }
+            if hand is None:
+                board, pot, stacks, bets = [], 0, [game.STARTING_STACK] * 2, [0, 0]
+                button = "you"
+            else:
+                over = hand.is_terminal
+                board = _cards(hand.result().board_revealed if over else view.board)
+                pot = hand.pot
+                stacks = list(hand.stacks)
+                bets = [0, 0] if over else list(hand.bets)
+                button = "you" if hand.button_seat == HUMAN else "bot"
+                if over:
+                    stacks = [game.STARTING_STACK + n for n in hand.result().nets]
             hands = self.hands_played
             return {
                 "status": self.status,
                 "opponent": self.opponent_label,
                 "hand_number": hands + (0 if self.status in ("idle", "hand_over") else 1),
-                "button": "you" if self.button == HUMAN else "bot",
-                "you": {"hole": _cards(self.human_hole), "stack": self.stacks[HUMAN],
-                        "bet": self.street_bets[HUMAN]},
-                "bot": {"stack": self.stacks[BOT], "bet": self.street_bets[BOT]},
-                "board": _cards(self.board),
-                "street": STREETS[len(self.board)],
-                "pot": self.pot,
+                "button": button,
+                "you": {"hole": _cards(view.hole_cards) if view else [], "stack": stacks[HUMAN],
+                        "bet": bets[HUMAN]},
+                "bot": {"stack": stacks[BOT], "bet": bets[BOT]},
+                "board": board,
+                "street": STREETS[hand.street] if hand else "Preflop",
+                "pot": pot,
                 "to_act": to_act,
                 "log": list(self.log),
                 "result": self.result,
@@ -284,20 +234,11 @@ class Table:
                 "session": {
                     "hands": hands,
                     "net": self.session_net,
-                    "bb_per_hand": round(self.session_net / self.big_blind / hands, 2) if hands else 0,
-                    "big_blind": self.big_blind,
-                    "blinds": f"{self.small_blind}/{self.big_blind}",
-                    "starting_stack": self.starting_stack,
+                    "bb_per_hand": round(self.session_net / game.BIG_BLIND / hands, 2) if hands else 0,
+                    "blinds": f"{game.SMALL_BLIND}/{game.BIG_BLIND}",
+                    "starting_stack": game.STARTING_STACK,
                 },
             }
-
-
-class _Seat:
-    """Adapter so the engine can call a Table method as if it were a bot."""
-
-    def __init__(self, act: Callable[[Observation], Action], name: str) -> None:
-        self.act = act
-        self.name = name
 
 
 def make_handler(table: Table) -> type[BaseHTTPRequestHandler]:
@@ -331,7 +272,7 @@ def make_handler(table: Table) -> type[BaseHTTPRequestHandler]:
                 if self.path == "/api/new_hand":
                     table.start_hand()
                 elif self.path == "/api/action":
-                    table.submit(str(body.get("kind", "")), body.get("amount", 0))
+                    table.submit(str(body.get("kind", "")))
                 else:
                     self._send(HTTPStatus.NOT_FOUND, b"Not found", "text/plain")
                     return
@@ -368,10 +309,7 @@ def main() -> None:
                         help="SuperBot (default) or any built-in strategy name.")
     parser.add_argument("--table", help="SuperBot's results folder or best_strategy_by_hand.json. "
                                         "Default: $SUPER_BOT_TABLE or ./hand_strategy_results.")
-    parser.add_argument("--stack", type=int, default=1_000)
-    parser.add_argument("--small-blind", type=int, default=5)
-    parser.add_argument("--big-blind", type=int, default=10)
-    parser.add_argument("--seed", type=int, help="Seed the shuffles to replay the same session.")
+    parser.add_argument("--seed", help="Seed the deals to replay the same session.")
     parser.add_argument("--bot-delay", type=float, default=0.7,
                         help="Seconds the bot pauses before acting, so you can follow along.")
     parser.add_argument("--host", default="127.0.0.1")
@@ -384,11 +322,11 @@ def main() -> None:
     except (FileNotFoundError, ValueError) as error:
         raise SystemExit(f"{error}\n\nTo try the table now without a strategy table, run:\n"
                          "  python3 play_vs_superbot.py --opponent ShortDeckPLO")
-    table = Table(factory, label, starting_stack=args.stack, small_blind=args.small_blind,
-                  big_blind=args.big_blind, seed=args.seed, bot_delay=args.bot_delay)
+    evaluator.warmup()
+    table = Table(factory, label, seed=args.seed, bot_delay=args.bot_delay)
     server = ThreadingHTTPServer((args.host, args.port), make_handler(table))
     url = f"http://{args.host}:{args.port}/"
-    print(f"Playing against {label}. Open {url}  (Ctrl+C to stop)")
+    print(f"Playing against {label} under the official rules. Open {url}  (Ctrl+C to stop)")
     if not args.no_browser:
         threading.Timer(0.5, webbrowser.open, args=(url,)).start()
     try:

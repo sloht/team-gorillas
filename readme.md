@@ -1,52 +1,112 @@
 # Short Deck 5-Card Pot-Limit Omaha Bots
 
-This project provides a small Python interface for poker bots and a heads-up
-round-robin harness. No third-party packages are required.
+This project holds the team's poker strategies, tools that rank them under the
+**official TAMU Datathon tournament rules and scoring**, SuperBot (which
+picks a strategy per starting hand), and a browser table for playing against
+it. No third-party packages are required.
 
-## Rules used by the simulator
+## Official rules and scoring
 
-- Short Deck uses the 36 cards ranked 6 through Ace.
-- Each player receives five private cards and must use exactly two of them with
-  exactly three of the five community cards.
-- Betting is pot-limit. A bet or raise action specifies the player's target
-  contribution on the current street.
-- A flush ranks above a full house. The Short Deck wheel is A-6-7-8-9.
-- Heads-up matches play a fixed number of hands with equal starting stacks.
-  Stacks reset after each hand, blinds stay fixed, and the button alternates.
-  This avoids a player being eliminated before the requested hand count.
-- Each hand number uses the same shuffled deck in every pairing, with button
-  positions alternating, so matches compare strategies on paired deals.
+All evaluation in this repo, including qualifying, the per-hand search,
+`run_tournament.py`, `run_evolution.py` and the play UI, uses the official
+tournament code from
+[tamu-datathon-org/heads-up-bundle](https://github.com/tamu-datathon-org/heads-up-bundle).
+It is copied unchanged into `official/` (see `official/SOURCE.md` for the
+commit and file hashes):
+
+| File | Used for |
+|---|---|
+| `official/game.py` | Refereeing every hand (`game.Game`), dealing (`game.make_deal`), rule constants |
+| `official/evaluator.py` | Scoring every showdown, and every bot's equity estimate (`omaha_score`) |
+| `official/judge_engine.py` | Scoring every match (`combine_halves`, `decide_verdict`) |
+
+Import them through `official_rules.py` (`from official_rules import game,
+evaluator, judge_engine`); never copy their logic. Do not edit the files in
+`official/`: a test checks their hashes.
+
+**The game** (from the official README and `game.py`):
+
+- 36-card short deck, 6 through ace. Five hole cards each; a hand is the best
+  five cards using **exactly 2** hole cards and **exactly 3** of the 5 board cards.
+- Hand order, weakest to strongest: high card, pair, two pair, straight,
+  **three of a kind**, full house, **flush**, four of a kind, straight flush.
+  Three of a kind beats a straight and a flush beats a full house. A-6-7-8-9
+  is the lowest straight. Ties split the pot.
+- Every hand starts with **80 chips each, blinds 1/2** (40 big blinds); stacks
+  reset every hand. The button posts the small blind and acts first preflop;
+  the other player acts first on the flop, turn and river.
+- Four actions: `FOLD`, `CHECK_CALL`, `RAISE_HALF` (raise to
+  `opp_bet + (pot + to_call) // 2`) and `RAISE_POT` (raise to
+  `opp_bet + pot + to_call`), clamped to the minimum raise and to all-in. At
+  most 4 raises per street. Folding is not allowed when checking is free.
+
+**A match** is duplicate: deals `game.make_deal(seed, d)` for `d` in
+`0..deals-1`, button on seat `d % 2`, played twice with the players swapping
+seats, so each holds the other's cards. The judge's `combine_halves` adds each
+deal's two results, and reports the mean in big blinds per deal with a 95%
+confidence interval: entirely above 0 is a **win (1 point)**, entirely below 0
+a **loss (0)**, otherwise a **chop (0.5 each)**. The tournament plays 1,000
+deals per match.
+
+**How the team's bots play it** (`official_match.py`). The bots keep their own
+interface (`short_deck_plo.Observation` and `Action`, with exact chip
+amounts), and `OfficialSeat` translates both ways:
+
+- What a bot sees: the official observation, with cards converted, `pot`,
+  `stack`, `call_amount` and `current_bet` as in the official one,
+  `min_raise_to` = the half-pot raise total, `max_raise_to` = the pot raise
+  total, `can_raise` = whether raising is legal, and `in_position` = on the button.
+- What a bot does: fold becomes `FOLD` (or `CHECK_CALL` when checking is free),
+  check or call becomes `CHECK_CALL`, and a bet or raise to X becomes `RAISE_HALF`
+  or `RAISE_POT`, whichever total is closer to X (a tie goes to half). A
+  raise when raising is not legal becomes `CHECK_CALL`. So a bot can never
+  make an illegal move.
+- Bots' equity estimates (`poker_bots.estimate_equity`) score their samples
+  with the official `evaluator.omaha_score`.
+
+Consequence for strategies: only two raise sizes exist, so strategies that
+differed only in bet sizing now play almost alike. What still separates them is
+when they fold, call and raise, and whether they choose the small or large raise.
+
+**Not modelled:** the official 8-second thinking budget per 1,000 hands
+(about 4–7 ms per decision). It matters only for the bot you submit as
+`agent.py`. Several strategies sample equity on every decision, so time the
+submitted agent separately.
 
 ## Run the built-in bot round robin
 
 ```bash
-python3 run_tournament.py
+python3 run_tournament.py                      # 9-bot lineup, 1,000 deals per match
+python3 run_tournament.py --deals 200 --seeds 42,43,44 --workers 8
 ```
 
 By default, the equity-driven `ShortDeckPLOBot` competes with eight differently
-styled reference strategies for 2,000 hands per matchup: random, calling
-station, tight-aggressive, loose-aggressive, rock, maniac, pot-control, and
-selective bluffing. Adjust the hand count, stack, blinds, and seed with
-`--hands`, `--stack`, `--small-blind`, `--big-blind`, and `--seed`.
+styled reference strategies: random, calling station, tight-aggressive,
+loose-aggressive, rock, maniac, pot-control, and selective bluffing. Every
+pairing is a duplicate match of `--deals` deals (default 1,000, like the
+tournament) on seed `--seed` (default 42); `--seeds` repeats the whole round
+robin on several seeds and adds the results up. `--workers N` plays pairings
+in parallel.
 
-The standings rank by the number of distinct opponents beaten first, then
-aggregate net chips. This prioritizes strategies that work across the whole
-field over a large win against one narrow opponent. Each pairing uses paired
-deals and alternating button positions to make comparisons fairer. For more
-reliable comparisons, increase `--hands` and repeat with several `--seed`
-values; a single run is not proof of a generally stronger strategy.
+Standings rank by **official points** (win 1, chop 0.5, loss 0, one match per
+pairing per seed), then by **average bb per deal** across all the strategy's
+matches. The table shows points out of matches, wins-chops-losses, the range of
+each seed's point rate (with several seeds), and average bb per deal. Short
+matches are mostly chops, so use enough deals for the interval to separate
+strategies.
 
 ## Four-generation strategy experiment
 
 ```bash
-python3 run_evolution.py --hands 100 --seed 42
+python3 run_evolution.py --deals 100 --seed 42
 ```
 
 The experiment runs four rounds of round robin. After each round, it keeps the
-six strategies with the most opponents beaten (net chips break ties), retains
-all eliminated bot code, and adds three new strategy classes. It then runs a
-final round robin with all 21 strategies, including eliminated bots. Increase
-`--hands` for a more reliable comparison.
+six strategies with the most official points (average bb per deal breaks ties),
+retains all eliminated bot code, and adds three new strategy classes. It then
+runs a final round robin with all 21 strategies, including eliminated bots, on
+`--final-seeds` (default 42, 43, 44). Increase `--deals` for a more reliable
+comparison.
 
 ## Full 201-strategy portfolio
 
@@ -60,22 +120,20 @@ List the portfolio or run every strategy against every other strategy:
 
 ```bash
 python3 run_tournament.py --list-strategies
-python3 run_tournament.py --all-strategies --hands 10 --seeds 42,43,44
+python3 run_tournament.py --all-strategies --deals 10 --seeds 42,43,44 --workers 8
 ```
 
 The 201-bot portfolio has 20,100 pairings per seed, so the all-strategy command
-defaults to one hand per pairing unless `--hands` is supplied. `--seeds`
-repeats the complete round robin on independent shuffled deal sequences and
-aggregates matchup wins/losses and chip results. For a multi-seed final in the
-four-generation experiment, use `python3 run_evolution.py --hands 100
---final-seeds 42,43,44`.
+defaults to one deal per pairing unless `--deals` is supplied.
 
 ## Add team bots
 
 Implement an `act(observation)` method that returns an `Action`. The observation
 contains five private cards, the public board, pot and stack sizes, call amount,
-legal raise bounds, position, and opponent count. Bet/raise amounts are target
-street contributions; return `Action.call()` to call the amount due.
+the two legal raise totals (`min_raise_to` = half pot, `max_raise_to` = pot),
+position, and opponent count. Bet/raise amounts are target street contributions
+and are played as the nearer official raise; return `Action.call()` to call
+the amount due.
 
 ```python
 from poker_bots import PokerBot
@@ -98,19 +156,21 @@ the built-in lineup:
 python3 run_tournament.py \
   --bot TeamA=team_a:TeamBot \
   --bot TeamB=team_b:TeamBot \
-  --hands 2000 --seed 42
+  --deals 1000 --seed 42
 ```
+
+These are Python bot classes. A finished tournament entry (`agent.py`, a web
+server) is tested with the official bundle's `judge_engine.py` instead.
 
 `ShortDeckPLOBot` uses sampled heads-up showdown equity, pot odds, and position
 to make decisions. The included reference bots are intentionally simple
-benchmarks, not optimized opponents. Improve the main bot in `poker_bots.py`,
-then compare it against the broad field with the same seeded round-robin
-harness. Use `--bot` to include multiple submissions in the same round robin.
+benchmarks, not optimized opponents.
 
 ## Best strategy for every starting hand
 
 `hand_strategy_search.py` measures which built-in strategy earns the most chips
-with each possible starting hand and saves the winner per hand. `super_bot.py`
+with each possible starting hand, under the official rules, and saves the
+winner per hand. `super_bot.py`
 (next section) reads that table to choose a strategy at the start of every hand.
 
 It runs in two stages:
@@ -121,7 +181,7 @@ It runs in two stages:
 2. **`run`**, the per-hand search: compares only those 40 strategies for every
    starting hand.
 
-> **Do not start a full run casually.** Qualifying is about 3 million poker
+> **Do not start a full run casually.** Qualifying is about 24 million poker
 > hands and the default per-hand search about 144 million. Both are meant for a
 > large multi-core machine. Use `estimate`, `qualify --estimate-only` (neither
 > plays anything) or `run --limit N` (a short trial) when working on the code.
@@ -129,16 +189,22 @@ It runs in two stages:
 ### Stage 1: the qualifying tournament (top 40)
 
 `qualify` plays every pair of strategies in the pool (default: all 201, so
-20,100 pairings) with `run_match`. Each pairing is played on every seed
-(default `1001-1003`, kept apart from the search seeds) for `--hands` hands
-(default 50). Strategies are ranked exactly like `run_tournament.py`: by the
-number of matches won (one match is one pairing on one seed), then by total
-net chips, then by name. The top `--top` (default 40) qualify.
+20,100 pairings). Each pairing is a full **official duplicate match** on every
+seed (default `1001-1003`, kept apart from the search seeds) of `--deals`
+deals (default 200; the tournament uses 1,000), each deal played from both
+seats. The verdict comes from the official `judge_engine.combine_halves`: a
+95% interval on bb per deal entirely above 0 wins (1 point), entirely below 0
+loses (0), otherwise it is a chop (0.5 each).
+
+Strategies are ranked like the tournament: by **total points**, then by
+**average bb per deal** over all their matches, then by name. The top `--top`
+(default 40) qualify. With few deals, most matches between similar strategies
+chop, so the bb tiebreak decides more of the order. More deals sharpen it.
 
 **Stored so it never runs again.** `qualify` writes:
 
-- `qualifiers.json`: `{"config": {...}, "top": 40, "qualified": [40 names, best first], "ranking": [every strategy's matches, match_wins, match_losses, match_ties, net_chips]}`. This is the file `run` reads.
-- `qualifier_matches.jsonl`: one line per finished match, `{"left", "right", "seed", "net": [left, right]}`.
+- `qualifiers.json`: `{"config": {...}, "top": 40, "qualified": [40 names, best first], "ranking": [{"name", "matches", "points", "wins", "chops", "losses", "avg_bb_per_deal"}, ...]}`. This is the file `run` reads.
+- `qualifier_matches.jsonl`: one line per finished match, `{"left", "right", "seed", "deals", "verdict", "points": [left, right], "mean_bb", "ci"}`. `mean_bb` and `ci` are from the left strategy's side; `verdict` is the judge's `AGENT1_WIN` (left), `AGENT2_WIN` (right) or `CHOP`.
 - `qualifier_config.json`: the settings, used to refuse a resume with different settings unless `--force`.
 
 Running `qualify` again with the same settings and `qualifiers.json` present
@@ -155,7 +221,8 @@ For every starting hand `H`:
 1. Every **hero** strategy is given `H`. The default heroes are `qualified`:
    the 40 names in `qualifiers.json`. `run` stops with instructions if that
    file is missing. `--heroes all|reference|lineup|NAME,…` bypasses qualifying.
-2. Each hero plays heads-up against every strategy in the **opponent field**.
+2. Each hero plays heads-up against every strategy in the **opponent field**,
+   one official `game.Game` per hand, through `OfficialSeat`.
    The default field is `lineup`, the 9 bots in the default
    `run_tournament.py` lineup, not all 201. Use `--opponents all` for the full
    field, which takes about 22 times longer.
@@ -171,11 +238,12 @@ For every starting hand `H`:
    hand: hero `deal_seed + button`, opponent `deal_seed + button + 1_000_003`.
    A hero's results therefore do not depend on which other heroes are in the
    run (a test checks this).
-6. Stacks reset every hand (default 1,000 chips, blinds 5/10).
+6. Every hand uses the official stacks and blinds (80 chips, 1/2). The hero
+   sits in seat 0; the button seat decides who posts what and who acts first.
 
 **Ranking metric.** The ranking uses the hero's **average net chips per hand,
-in big blinds**, over all opponents, seeds, deals and both seats. It is *not*
-a count of hands or matches won. Chips decide matches in this engine, and a
+in official big blinds (2 chips)**, over all opponents, seeds, deals and both seats. It is *not*
+a count of hands or matches won. Chips decide matches in the tournament, and a
 win count would favour strategies that win many small pots and lose a few big
 ones. The strategy with the highest average is stored as `best`; ties are
 broken by name.
@@ -232,7 +300,6 @@ Options shared by `estimate` and `run`:
 | `--opponents` | `lineup` | Field each hero plays against; same choices |
 | `--seeds` | `1-5` | `1-10`, `1,2,42`, or a mix |
 | `--deals-per-seed` | `2` | Opponent hand and board draws per seed |
-| `--stack`, `--small-blind`, `--big-blind` | `1000`, `5`, `10` | Chip settings, reset every hand |
 | `--all-combos` | off | Test raw hands instead of suit classes |
 | `--shard K/N` | `0/1` | Only hands at index `K, K+N, K+2N…` of the fixed hand order |
 | `--limit N` | none | Only the first N hands of this shard |
@@ -240,9 +307,9 @@ Options shared by `estimate` and `run`:
 
 `run` also takes `--force` and `--progress-every` (default 25). `merge` and
 `lookup` take only `--out`. `qualify` takes `--pool` (default `all`), `--top`
-(40), `--seeds` (`1001-1003`), `--hands` (50), `--stack`, `--small-blind`,
-`--big-blind`, `--out`, `--workers`, `--force`, `--estimate-only` and
-`--progress-every`.
+(40), `--seeds` (`1001-1003`), `--deals` (200), `--out`, `--workers`,
+`--force`, `--estimate-only` and `--progress-every`. Stacks and blinds are not
+options: they are the official ones.
 
 ### Resuming and settings safety
 
@@ -262,7 +329,7 @@ Options shared by `estimate` and `run`:
 
 Total work is simple to predict:
 
-- Qualifying hands = `pool × (pool − 1) / 2 × qualify seeds × --hands`
+- Qualifying hands = `pool × (pool − 1) / 2 × qualify seeds × --deals × 2`
 - Search hands = `starting hands × heroes × opponents × seeds × deals_per_seed × 2`
 
 Every factor is a setting. Check any combination first with
@@ -278,7 +345,7 @@ order of how much they save for what they cost:
 | Fewer seeds | `run --seeds 1-3` | Linear: 5 → 3 is 60% | More noise, fewer `clear_winner` hands |
 | One deal per seed | `--deals-per-seed 1` | Halves the search | More noise |
 | Smaller qualifying pool | `qualify --pool reference` (21) or a name list | Pairings fall from 20,100 to 210 | Generated variants never compete |
-| Shorter qualifying matches | `qualify --hands 20`, `--seeds 1001` | Linear | Noisier top-40 ranking |
+| Shorter qualifying matches | `qualify --deals 50`, `--seeds 1001` | Linear | More chops, so a noisier top-40 ranking |
 | Skip qualifying | `run --heroes reference` or `--heroes NAME,NAME,…` | No stage 1 at all | You choose the heroes yourself |
 | Reuse a saved list | `run --qualifiers saved/qualifiers.json` | No stage 1 at all | None, if the saved list suits you |
 | Keep suit symmetry | the default; avoid `--all-combos` | `--all-combos` is ~19× more | None |
@@ -290,12 +357,13 @@ Example totals, from the estimate commands:
 
 | Settings | Qualifying hands | Search hands |
 |---|---|---|
-| Defaults (top 40, 9 opponents, seeds 1-5, 2 deals) | 3,015,000 | 143,985,600 |
-| `run --seeds 1-3` | 3,015,000 | 86,391,360 |
-| `run --deals-per-seed 1` | 3,015,000 | 71,992,800 |
-| `qualify --top 20 --hands 20`; `run --seeds 1-3 --deals-per-seed 1` | 1,206,000 | 21,597,840 |
-| `qualify --pool reference --top 10 --seeds 1001 --hands 30`; `run --opponents ShortDeckPLO,TightAggressive,LooseAggressive --seeds 1-3 --deals-per-seed 1` | 6,300 | 3,599,640 |
-| Defaults with `--all-combos` | 3,015,000 | 2,714,342,400 |
+| Defaults (qualify 200 deals; top 40, 9 opponents, seeds 1-5, 2 deals) | 24,120,000 | 143,985,600 |
+| `qualify --deals 1000` (tournament length) | 120,600,000 | 143,985,600 |
+| `run --seeds 1-3` | 24,120,000 | 86,391,360 |
+| `run --deals-per-seed 1` | 24,120,000 | 71,992,800 |
+| `qualify --top 20 --deals 50`; `run --seeds 1-3 --deals-per-seed 1` | 6,030,000 | 21,597,840 |
+| `qualify --pool reference --top 10 --seeds 1001 --deals 50`; `run --opponents ShortDeckPLO,TightAggressive,LooseAggressive --seeds 1-3 --deals-per-seed 1` | 21,000 | 3,599,640 |
+| Defaults with `--all-combos` | 24,120,000 | 2,714,342,400 |
 
 `merge` works on whatever shard lines exist, and SuperBot uses its fallback
 for any hand not yet in the table. So a run can be stopped early and still
@@ -309,17 +377,16 @@ Options that need care or code changes, none of them tested here:
   unchanged. Pure-Python loops like these often run several times faster
   under PyPy. Time a `--limit 20` trial with both interpreters before
   committing to it.
-- **Faster equity estimates.** Most of the time goes to `estimate_equity`
-  in `poker_bots.py`, a Monte Carlo loop over `omaha_rank`. Reducing each
-  strategy's `equity_samples` changes how the strategies play, so the results
-  would describe different bots; don't do it just for speed. A faster
-  `omaha_rank` (for example, a precomputed rank lookup table) keeps the
-  results identical and is the best code-level speed-up. Check it against the
-  current function on many random hands.
+- **Equity estimates.** Most of the time goes to `estimate_equity` in
+  `poker_bots.py`, a Monte Carlo loop that already uses the official
+  evaluator's lookup table. Reducing each strategy's `equity_samples` changes
+  how the strategies play, so the results would describe different bots;
+  don't do it just for speed.
 - **GPU.** The code does not use a GPU, and the betting logic would not gain
   from one: each hand is a branching chain of decisions. Only the equity
-  sampling could be moved to a GPU, by rewriting `omaha_rank` and
-  `estimate_equity` as batched array code (for example in PyTorch or CuPy).
+  sampling could be moved to a GPU, by rewriting `estimate_equity` as batched
+  array code (for example in PyTorch or CuPy) over the official score table.
+  The tournament machines have no GPU, so this would only help offline runs.
   That is a large rewrite, and the equity values must match the current ones
   or every strategy's behaviour shifts. Try PyPy, more cores and the settings
   above first.
@@ -403,7 +470,7 @@ SUPER_BOT_TABLE=results python3 run_tournament.py \
   --bot Super=super_bot:SuperBot \
   --bot ShortDeckPLO=poker_bots:ShortDeckPLOBot \
   --bot TightAggressive=poker_bots:TightAggressiveBot \
-  --hands 2000 --seeds 100,101,102
+  --deals 1000 --seeds 100,101,102
 ```
 
 Evaluate it on seeds the search did not use, here 100 and up against a search
@@ -423,7 +490,8 @@ the play path ever imports the search module.
 ## Play against SuperBot
 
 `play_vs_superbot.py` is a local web app for playing heads-up against SuperBot
-in your browser. It needs nothing beyond the standard library.
+in your browser, under the official rules. It needs nothing beyond the
+standard library.
 
 ```bash
 python3 play_vs_superbot.py                          # SuperBot, table from $SUPER_BOT_TABLE or ./hand_strategy_results
@@ -432,50 +500,55 @@ python3 play_vs_superbot.py --opponent ShortDeckPLO  # any built-in bot; no tabl
 ```
 
 It opens `http://127.0.0.1:8765`. The page shows your five cards, the board,
-the pot, both stacks and street bets, and the dealer button. Controls are Fold,
-Check or Call, and Bet or Raise with a slider, a chip box, and Min, Half pot
-and Pot (or All-in) sizes. Keyboard: F fold, C check or call, R bet or raise,
-N next hand. The side log lists every action by street.
+the pot, both stacks and street bets, and the dealer button. The controls are
+the four official actions: Fold, Check or Call, Raise to the half-pot total
+and Raise to the pot total, each showing the exact chip amount, or "all-in"
+when that is what it comes to. Buttons appear only when the action is legal,
+and the page says when the 4-raise limit is reached. Keyboard: F fold, C check
+or call, H half-pot raise, P pot raise, N next hand. The side log lists the
+blinds and every action by street.
 
-At a showdown, SuperBot's cards are revealed. After each hand the page names
+At a showdown, SuperBot's cards are revealed along with both hand types (for
+example "three of a kind against straight"). After each hand the page names
 the strategy SuperBot played that hand with. The header keeps a running score
-in chips and big blinds per hand. Stacks reset every hand and the button
-alternates, as in `run_match`.
+in chips and big blinds per hand. Deals come from `game.make_deal(session
+seed, hand number)` and the button alternates, like one half of a tournament
+match.
 
-Options: `--stack`, `--small-blind`, `--big-blind`, `--seed` (replay the same
-shuffles), `--bot-delay` (seconds the bot pauses so you can follow along,
-default 0.7), `--host`, `--port`, `--no-browser`. Without a strategy table,
-`--opponent SuperBot` stops with a message explaining how to make one or play
-another bot.
+Options: `--seed` (replay the same deals), `--bot-delay` (seconds the bot
+pauses so you can follow along, default 0.7), `--host`, `--port`,
+`--no-browser`. Stacks and blinds are the official ones. Without a strategy
+table, `--opponent SuperBot` stops with a message explaining how to make one or
+play another bot.
 
-**How it works, for agents changing it.** Each hand runs in the real engine
-(`play_hand`) on a background thread. Your seat is a `_Seat` whose `act()` is
-`Table.human_act`. That method publishes the observation and blocks on a queue
-until the browser posts an action. The browser polls `GET /api/state`, which
-returns JSON with status, cards as text such as `"As"`, stacks, `to_act` with
-the legal amounts, the log and the result. It sends `POST /api/action
-{"kind": "fold|check|call|bet|raise", "amount": N}` and `POST /api/new_hand`.
-`validate_action()` checks every action against the engine's rules before it
-reaches the engine, so an illegal click returns HTTP 400 with a reason instead
-of crashing the hand. The page is `play_vs_superbot.html` (plain HTML, CSS and
-JS), served from the same folder.
+**How it works, for agents changing it.** `Table` holds one official
+`game.Game` per hand; you are seat 0. Your action is checked against
+`Game.legal_actions()` and applied with `Game.apply`; then a background thread
+lets the bot (wrapped in `OfficialSeat`) act until it is your turn or the hand
+ends. If the bot crashes, it plays the judge's default (check, or fold to a
+bet) and the page says so. The browser polls `GET /api/state`, which returns
+JSON with status, cards as text such as `"As"`, stacks, street bets, `to_act`
+(`legal` action names, `call_amount`, `raise_half_to`, `raise_pot_to`,
+`all_in_to`, `raises_this_street`, `raise_cap`), the log and the result. It
+sends `POST /api/action {"kind": "FOLD|CHECK_CALL|RAISE_HALF|RAISE_POT"}` and
+`POST /api/new_hand`. An illegal action returns HTTP 400 with the legal ones
+listed. The page is `play_vs_superbot.html` (plain HTML, CSS and JS), served
+from the same folder.
 
-**Engine quirk this works around.** In `short_deck_plo._Hand._betting_round`,
-after a bet or raise the to-act list is rebuilt with `_clockwise(seat)`. In
-heads-up that list includes the bettor, so after being called the bettor is
-asked to act once more. Its only legal move then is a check, so no chips
-move. The UI answers that extra turn with a check without showing or logging
-it. The engine itself is unchanged, so tournaments and the strategy search
-still make that extra `act()` call. It does not change chip results, but it
-does consume one extra random draw for bots like `RandomBot`.
+### Module map
 
-### Engine helpers added for this
-
-`short_deck_plo.play_hand(first, second, button=, deck=, ...)` plays one hand
-from a prepared deck and returns `(net_seat0, net_seat1)`.
-`short_deck_plo.deck_for_deal((hand_seat0, hand_seat1), button, rest)` builds
-that deck. `rest` is the other 26 cards: `rest[0:3]` is the flop, `rest[3]`
-the turn and `rest[4]` the river. Existing engine behaviour is unchanged.
+| Module | Role |
+|---|---|
+| `official/` | Unedited official `game.py`, `evaluator.py`, `judge_engine.py` |
+| `official_rules.py` | Loads them; converts between team cards `(rank, suit)` and official ints |
+| `official_match.py` | `OfficialSeat` adapter, `play_hand`, `play_half`, `run_match` (duplicate, judge-scored), `run_round_robin`, `Standing` |
+| `short_deck_plo.py` | The bot interface only: `Card`, `DECK`, `Action`, `Observation`, and `rank_five` / `omaha_rank` delegating to the official evaluator |
+| `poker_bots.py` | The 201 strategies and `estimate_equity` (official scoring) |
+| `hand_keys.py` | Card text and suit-symmetry hand keys shared by the search and SuperBot |
+| `hand_strategy_search.py` | `qualify`, `estimate`, `run`, `merge`, `lookup` |
+| `super_bot.py` | SuperBot |
+| `play_vs_superbot.py` / `.html` | The browser game |
+| `run_tournament.py`, `run_evolution.py` | Round robins with official scoring |
 
 ## Tests
 
@@ -486,8 +559,11 @@ python3 -m unittest discover -s tests -v
 `tests/test_hand_strategy_search.py` and `tests/test_super_bot.py` cover dealing,
 suit symmetry, the common-deal guarantee, merge and lookup, and SuperBot's
 table use, fallback and strategy switching. `tests/test_play_vs_superbot.py`
-covers action checking, full hands played through the web app's `Table`,
-scoring, button rotation, the hidden extra check, and the guarantee that
-playing never imports the search. They use only the cheap
+covers official action checking, full hands through the web app's `Table`,
+official deals and button rotation, raise amounts, all-ins, and the guarantee
+that playing never imports the search. `tests/test_official_rules.py` checks
+the official files' hashes, the adapter in both directions, that all 201
+strategies only ever make legal official moves, and that `run_match` gives
+exactly the judge's `combine_halves` result. They use only the cheap
 `CallingStation`, `Random` and `Maniac` bots on a few hands, finish in seconds,
 and never start the real search.

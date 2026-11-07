@@ -28,15 +28,14 @@ from poker_bots import (
 )
 from run_evolution import ALL_COMPETITORS, GENERATIONS, ORIGINAL, advance_field
 from run_tournament import ALL_BUILTIN_STRATEGIES
+from official_match import Standing, run_match, run_round_robin
+from official_rules import evaluator
 from short_deck_plo import (
     Action,
     DECK,
     Observation,
-    Standing,
     omaha_rank,
     rank_five,
-    run_match,
-    run_multi_seed_round_robin,
 )
 
 
@@ -50,14 +49,21 @@ class HandRankingTests(unittest.TestCase):
         full_house = [(6, 0), (6, 1), (6, 2), (9, 0), (9, 1)]
         self.assertGreater(rank_five(flush), rank_five(full_house))
 
-    def test_short_deck_wheel_is_six_to_ten(self):
+    def test_short_deck_wheel_is_the_lowest_straight(self):
         wheel = [(14, 0), (6, 1), (7, 2), (8, 3), (9, 0)]
-        self.assertEqual(rank_five(wheel), (4, 9))
+        six_to_ten = [(6, 0), (7, 1), (8, 2), (9, 3), (10, 0)]
+        self.assertEqual(evaluator.category_of(rank_five(wheel)), evaluator.STRAIGHT)
+        self.assertLess(rank_five(wheel), rank_five(six_to_ten))
+
+    def test_three_of_a_kind_beats_a_straight(self):
+        trips = [(6, 0), (6, 1), (6, 2), (8, 0), (9, 1)]
+        straight = [(10, 0), (11, 1), (12, 2), (13, 3), (14, 0)]
+        self.assertGreater(rank_five(trips), rank_five(straight))
 
     def test_omaha_must_use_exactly_two_hole_cards(self):
         hole = [(6, 0), (7, 1), (8, 2), (6, 3), (7, 0)]
         board = [(10, 3), (11, 3), (12, 3), (13, 3), (14, 3)]
-        self.assertLess(omaha_rank(hole, board)[0], 8)
+        self.assertLess(evaluator.category_of(omaha_rank(hole, board)), evaluator.STRAIGHT_FLUSH)
 
     def test_omaha_rejects_wrong_hole_card_count(self):
         with self.assertRaises(ValueError):
@@ -83,29 +89,29 @@ class BotAndMatchTests(unittest.TestCase):
     def test_same_seed_replays_same_match(self):
         def play():
             return run_match(
-                ShortDeckPLOBot(), RandomBot(), hands=12, seed=123,
-            )
+                ShortDeckPLOBot(), RandomBot(), deals=12, seed=123,
+            ).to_dict(include_timing=False)
 
         self.assertEqual(play(), play())
 
-    def test_calling_stations_complete_heads_up_hands(self):
-        result = run_match(
-            CallingStationBot(), CallingStationBot(), hands=4, seed=3,
-        )
-        self.assertEqual(result.hands_played, 4)
-        self.assertEqual(sum(result.net_chips), 0)
+    def test_identical_bots_chop_a_duplicate_match(self):
+        result = run_match(CallingStationBot(), CallingStationBot(), deals=4, seed=3)
+        self.assertEqual(result.num_deals, 4)
+        self.assertEqual(result.mean_bb, 0)
+        self.assertEqual(result.verdict, "CHOP")
+        self.assertEqual(result.points, {"agent1": 0.5, "agent2": 0.5})
 
     def test_multi_seed_round_robin_aggregates_records(self):
-        standings = run_multi_seed_round_robin(
+        standings = run_round_robin(
             [("CallA", CallingStationBot), ("CallB", CallingStationBot)],
             seeds=(3, 5),
-            hands_per_match=2,
+            deals=2,
         )
         self.assertEqual(len(standings), 2)
         self.assertTrue(all(row.matches == 2 for row in standings))
-        self.assertTrue(all(row.seed_match_counts == (1, 1) for row in standings))
-        self.assertTrue(all(row.seed_win_rate_range is not None for row in standings))
-        self.assertEqual(sum(row.net_chips for row in standings), 0)
+        self.assertTrue(all(row.seed_matches == (1, 1) for row in standings))
+        self.assertTrue(all(row.seed_point_rate_range is not None for row in standings))
+        self.assertEqual(sum(row.points for row in standings), 2)
 
     def test_action_helpers_return_expected_kinds(self):
         self.assertEqual(Action.bet_to(20).kind, "bet")
@@ -178,7 +184,7 @@ class BotAndMatchTests(unittest.TestCase):
 
     def test_elimination_keeps_top_six_then_adds_three(self):
         standings = [
-            Standing(name, 8, wins, 8 - wins, 0, wins * 100, 0)
+            Standing(name, 8, float(wins), wins, 8 - wins, 0, wins / 10)
             for wins, (name, _) in enumerate(ORIGINAL)
         ]
         next_field = advance_field(ORIGINAL, standings, GENERATIONS[0])
@@ -196,8 +202,8 @@ class BotAndMatchTests(unittest.TestCase):
         ]
         for strategy in strategies:
             with self.subTest(strategy=strategy.name):
-                result = run_match(strategy(), CallingStationBot(), hands=2, seed=7)
-                self.assertEqual(result.hands_played, 2)
+                result = run_match(strategy(), CallingStationBot(), deals=2, seed=7)
+                self.assertEqual(result.num_deals, 2)
 
 
 if __name__ == "__main__":

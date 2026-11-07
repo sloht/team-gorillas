@@ -23,7 +23,8 @@ from hand_strategy_search import (
     summarize_hand,
 )
 from poker_bots import PokerBot
-from short_deck_plo import DECK, Action, deck_for_deal, play_hand
+from official_rules import game
+from short_deck_plo import Action
 
 
 class _RecordingBot(PokerBot):
@@ -42,28 +43,32 @@ class _RecordingBot(PokerBot):
 
 def _config(**overrides):
     values = dict(heroes=("CallingStation", "Random"), opponents=("CallingStation",),
-                  seeds=(1, 2), deals_per_seed=2, starting_stack=1_000,
-                  small_blind=5, big_blind=10, all_combos=False)
+                  seeds=(1, 2), deals_per_seed=2, all_combos=False)
     values.update(overrides)
     return SearchConfig(**values)
 
 
 class DealingTests(unittest.TestCase):
-    def test_deck_for_deal_gives_each_seat_its_hand_and_board(self):
-        first, second = DECK[:5], DECK[5:10]
-        rest = list(DECK[10:])
-        for button in (0, 1):
-            bots = (_RecordingBot(), _RecordingBot())
-            deck = deck_for_deal((first, second), button, rest)
-            net = play_hand(*bots, button=button, deck=deck)
-            self.assertEqual(sorted(bots[0].hole), sorted(first))
-            self.assertEqual(sorted(bots[1].hole), sorted(second))
-            self.assertEqual(bots[0].boards[-1], tuple(rest[:5]))
-            self.assertEqual(sum(net), 0)
+    def test_hero_always_holds_the_hand_under_official_rules(self):
+        hand = parse_hand("As Kh Qd Jc Ts")
+        recorder, opponent = _RecordingBot(), _RecordingBot()
+        config = _config(heroes=("Recorder",), opponents=("Opponent",))
+        seen_holes, seen_boards = set(), set()
+        original_act = recorder.act
 
-    def test_deck_for_deal_rejects_overlapping_cards(self):
-        with self.assertRaises(ValueError):
-            deck_for_deal((DECK[:5], DECK[:5]), 0, list(DECK[10:]))
+        def act(observation):
+            seen_holes.add(tuple(sorted(observation.hole)))
+            if len(observation.board) == 5:
+                seen_boards.add(observation.board)
+            self.assertEqual(observation.big_blind, game.BIG_BLIND)
+            self.assertLessEqual(observation.stack, game.STARTING_STACK)
+            return original_act(observation)
+
+        recorder.act = act
+        stats = evaluate_hand(hand, config, {"Recorder": recorder}, {"Opponent": opponent})
+        self.assertEqual(seen_holes, {tuple(sorted(hand))})
+        self.assertEqual(len(seen_boards), 4)  # 2 seeds x 2 deals, each played from both seats
+        self.assertEqual(stats["Recorder"][0], 2 * 2 * 2)
 
 
 class StartingHandTests(unittest.TestCase):
@@ -136,21 +141,28 @@ class MergeAndLookupTests(unittest.TestCase):
 
 
 class QualifyTests(unittest.TestCase):
-    def test_rank_by_opponents_beaten_then_chips(self):
+    def test_rank_by_points_then_bb_per_deal(self):
+        # A beats B, B beats C, C beats A: all on 1 point, so bb per deal decides.
+        # A: (0.8 - 0.2) / 2 = +0.30, C: (-0.3 + 0.2) / 2 = -0.05, B: (-0.8 + 0.3) / 2 = -0.25
         matches = [
-            {"left": "A", "right": "B", "seed": 1, "net": [50, -50]},
-            {"left": "A", "right": "C", "seed": 1, "net": [-10, 10]},
-            {"left": "B", "right": "C", "seed": 1, "net": [300, -300]},
+            {"left": "A", "right": "B", "seed": 1, "points": [1, 0], "mean_bb": 0.8},
+            {"left": "B", "right": "C", "seed": 1, "points": [1, 0], "mean_bb": 0.3},
+            {"left": "A", "right": "C", "seed": 1, "points": [0, 1], "mean_bb": -0.2},
         ]
         ranking = rank_qualifiers(matches, ["A", "B", "C"])
-        self.assertEqual([row["name"] for row in ranking], ["B", "A", "C"])
-        self.assertEqual(ranking[0]["match_wins"], 1)
+        self.assertEqual([row["name"] for row in ranking], ["A", "C", "B"])
+        self.assertEqual([row["points"] for row in ranking], [1, 1, 1])
+        self.assertAlmostEqual(ranking[0]["avg_bb_per_deal"], 0.3)
+
+        # A chop is worth half a point and outranks a loss.
+        chop = [{"left": "A", "right": "B", "seed": 1, "points": [0.5, 0.5], "mean_bb": 0.0}]
+        self.assertEqual(rank_qualifiers(chop, ["A", "B"])[0]["chops"], 1)
 
     def test_qualify_writes_top_n_and_resumes(self):
         with tempfile.TemporaryDirectory() as folder, redirect_stdout(io.StringIO()) as out, \
                 redirect_stderr(io.StringIO()) as log:
             args = ["qualify", "--out", folder, "--pool", "CallingStation,Random,Maniac",
-                    "--top", "2", "--seeds", "1,2", "--hands", "2", "--workers", "1"]
+                    "--top", "2", "--seeds", "1,2", "--deals", "2", "--workers", "1"]
             main(args)
             data = json.loads(Path(folder, "qualifiers.json").read_text())
             self.assertEqual(len(data["qualified"]), 2)

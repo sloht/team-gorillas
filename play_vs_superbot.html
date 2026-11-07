@@ -77,11 +77,8 @@
   .btn.primary { background: var(--brass); color: var(--brass-ink); border-color: var(--brass); }
   .btn.primary:hover:not(:disabled) { background: #E6B451; }
   .btn kbd { font-family: var(--body); font-size: .75rem; opacity: .65; margin-left: 6px; }
-  .raise { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 6px 10px; border-radius: 12px; background: var(--rail); border: 1px solid var(--rail-line); }
-  .raise input[type=range] { width: 160px; accent-color: var(--brass); }
-  .raise input[type=number] { width: 84px; padding: 8px; border-radius: 8px; border: 1px solid var(--rail-line); background: var(--baize); font-family: var(--display); font-size: 1.1rem; }
-  .size { padding: 6px 10px; border-radius: 8px; border: 1px solid var(--rail-line); background: transparent; cursor: pointer; font-size: .9rem; min-height: 36px; }
-  .size:hover { border-color: var(--brass); }
+  .size-note { display: block; font-size: .78rem; font-weight: 500; opacity: .75; }
+  .cap-note { color: var(--muted); font-size: .9rem; }
 
   .log { background: var(--baize); border: 1px solid var(--rail-line); border-radius: 20px; padding: 18px 20px; align-self: start; max-height: calc(100vh - 40px); overflow: auto; position: sticky; top: 20px; }
   .log h2 { margin: 0 0 10px; font-family: var(--display); font-size: 1.25rem; font-weight: 600; }
@@ -100,7 +97,6 @@
     .card .rank { font-size: 2rem; } .card .suit { font-size: 1.4rem; }
     .you .card { width: 58px; height: 84px; }
     .you .card .rank { font-size: 2.2rem; } .you .card .suit { font-size: 1.6rem; }
-    .raise input[type=range] { width: 120px; }
   }
   @media (prefers-reduced-motion: reduce) { .card.deal { animation: none; } }
 </style>
@@ -146,7 +142,8 @@
   <aside class="log" aria-label="Hand log">
     <h2 id="log-title">This hand</h2>
     <ol id="log"></ol>
-    <p class="help">Keys: F fold, C check or call, R bet or raise the amount shown, N deal the next hand.</p>
+    <p class="help">Official tournament rules: 80 chips, blinds 1/2, raises are half pot or pot, at most 4 per street. Three of a kind beats a straight; a flush beats a full house.</p>
+    <p class="help">Keys: F fold, C check or call, H half-pot raise, P pot raise, N next hand.</p>
   </aside>
 </main>
 
@@ -210,8 +207,8 @@ function render() {
   renderCards("bot-cards", botHole || [], { backs: botHole ? 0 : (inHand ? 5 : 0) });
   renderCards("board", s.board, { slots: inHand ? 5 - s.board.length : 5 });
   renderCards("you-cards", s.you.hole, {});
-  $("pot").textContent = s.pot.toLocaleString();
-  $("pot-label").textContent = s.status === "hand_over" ? (s.pot ? "chips changed hands" : "split evenly") : "in the pot";
+  $("pot").textContent = (s.status === "hand_over" && s.result ? s.result.pot : s.pot).toLocaleString();
+  $("pot-label").textContent = s.status === "hand_over" ? "was the pot" : "in the pot";
 
   const status = $("status");
   status.className = "status";
@@ -220,11 +217,12 @@ function render() {
   else if (s.status === "bot_thinking") status.textContent = `${s.opponent} is thinking…`;
   else if (s.status === "your_turn") {
     const t = s.to_act;
-    status.textContent = t.call_amount ? `${s.street}: ${t.call_amount} to call.` : `${s.street}: check or bet.`;
+    status.textContent = t.call_amount ? `${s.street}: ${t.call_amount} to call.` : `${s.street}: ${t.legal.includes("RAISE_HALF") ? "check or bet" : "check"}.`;
   } else if (s.status === "hand_over" && s.result) {
     status.className = "status " + (s.result.net > 0 ? "result-win" : s.result.net < 0 ? "result-lose" : "");
+    const hands = s.result.hands ? `<span class="strategy">Your ${s.result.hands.you} against ${s.opponent}'s ${s.result.hands.bot}.</span>` : "";
     const strat = s.result.strategy ? `<span class="strategy">${s.opponent} played this hand as ${s.result.strategy}.</span>` : "";
-    status.innerHTML = `${s.result.headline}.${strat}`;
+    status.innerHTML = `${s.result.headline}.${hands}${strat}`;
   } else status.textContent = "";
   if (s.error) $("error").textContent = s.error;
 
@@ -246,41 +244,21 @@ function renderControls() {
     return;
   }
   if (s.status !== "your_turn") {
-    el.innerHTML = `<button class="btn" disabled>Fold</button><button class="btn" disabled>Waiting for ${s.opponent}</button>`;
+    el.innerHTML = `<button class="btn" disabled>Waiting for ${s.opponent}</button>`;
     return;
   }
-  const callLabel = t.call_amount ? `Call ${t.call_amount}` : "Check";
+  const can = (name) => t.legal.includes(name);
+  const raiseLabel = (to, size) => `${t.call_amount || s.street === "Preflop" ? "Raise" : "Bet"} to ${to}` +
+    `<small class="size-note">${to === t.all_in_to ? "all-in" : size}</small>`;
   let html = "";
-  if (t.call_amount) html += `<button class="btn" id="fold">Fold<kbd>F</kbd></button>`;
-  html += `<button class="btn" id="call">${callLabel}<kbd>C</kbd></button>`;
-  if (t.can_raise) {
-    const verb = t.raise_kind === "raise" ? "Raise to" : "Bet";
-    const lo = t.min_raise_to, hi = t.max_raise_to;
-    const half = Math.round(t.current_bet + (t.pot + t.call_amount) / 2);
-    const sizes = [["Min", lo]];
-    if (half > lo && half < hi) sizes.push(["Half pot", half]);
-    sizes.push([hi === t.all_in_to ? "All-in" : "Pot", hi]);
-    html += `<div class="raise">
-      <button class="btn primary" id="raise">${verb} <span id="raise-amt">${lo}</span><kbd>R</kbd></button>
-      <input type="range" id="raise-range" min="${lo}" max="${hi}" step="1" value="${lo}" aria-label="Amount" ${lo === hi ? "disabled" : ""}>
-      <input type="number" id="raise-input" min="${lo}" max="${hi}" step="1" value="${lo}" aria-label="Amount in chips" ${lo === hi ? "disabled" : ""}>
-      ${sizes.map(([label, v]) => `<button class="size" data-v="${v}">${label}</button>`).join("")}
-    </div>`;
-  }
+  if (can("FOLD")) html += `<button class="btn" id="FOLD">Fold<kbd>F</kbd></button>`;
+  html += `<button class="btn" id="CHECK_CALL">${t.call_amount ? `Call ${t.call_amount}` : "Check"}<kbd>C</kbd></button>`;
+  if (can("RAISE_HALF")) html += `<button class="btn primary" id="RAISE_HALF">${raiseLabel(t.raise_half_to, "half pot")}<kbd>H</kbd></button>`;
+  if (can("RAISE_POT")) html += `<button class="btn primary" id="RAISE_POT">${raiseLabel(t.raise_pot_to, "pot")}<kbd>P</kbd></button>`;
+  if (!can("RAISE_HALF") && t.raises_this_street >= t.raise_cap) html += `<span class="cap-note">Raise limit of ${t.raise_cap} reached this street</span>`;
   el.innerHTML = html;
-  if (t.call_amount) $("fold").onclick = () => act("fold");
-  $("call").onclick = () => act(t.call_amount ? "call" : "check");
-  if (t.can_raise) {
-    const set = (v) => {
-      v = Math.max(t.min_raise_to, Math.min(t.max_raise_to, Math.round(Number(v) || t.min_raise_to)));
-      $("raise-range").value = v; $("raise-input").value = v; $("raise-amt").textContent = v;
-    };
-    $("raise-range").oninput = (e) => set(e.target.value);
-    $("raise-input").onchange = (e) => set(e.target.value);
-    el.querySelectorAll(".size").forEach((b) => b.onclick = () => set(b.dataset.v));
-    $("raise").onclick = () => act(t.raise_kind, Number($("raise-input").value));
-  }
-  $("call").focus();
+  for (const name of t.legal) if ($(name)) $(name).onclick = () => act(name);
+  $("CHECK_CALL").focus();
 }
 
 function renderLog() {
@@ -313,7 +291,7 @@ async function post(path, body) {
   } finally { busy = false; }
 }
 const deal = () => { shownCards = {}; post("/api/new_hand"); };
-const act = (kind, amount) => post("/api/action", { kind, amount: amount || 0 });
+const act = (kind) => post("/api/action", { kind });
 
 async function poll() {
   try {
@@ -333,9 +311,8 @@ document.addEventListener("keydown", (e) => {
   const t = state.to_act;
   if (k === "n" && (state.status === "idle" || state.status === "hand_over")) deal();
   else if (state.status === "your_turn" && t) {
-    if (k === "f" && t.call_amount) act("fold");
-    else if (k === "c") act(t.call_amount ? "call" : "check");
-    else if (k === "r" && t.can_raise) $("raise").click();
+    const pick = { f: "FOLD", c: "CHECK_CALL", h: "RAISE_HALF", p: "RAISE_POT" }[k];
+    if (pick && t.legal.includes(pick)) act(pick);
   }
 });
 

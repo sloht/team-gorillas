@@ -6,20 +6,12 @@ import time
 import unittest
 from pathlib import Path
 
-from play_vs_superbot import Table, build_opponent, validate_action
-from poker_bots import CallingStationBot
-from short_deck_plo import DECK, Observation
+from official_rules import game
+from play_vs_superbot import Table, build_opponent, parse_action
+from poker_bots import CallingStationBot, ManiacBot
 
 ROOT = Path(__file__).resolve().parents[1]
-
-
-def _observation(call_amount=5, current_bet=10, can_raise=True, min_to=20, max_to=30, stack=995):
-    return Observation(
-        seat=0, button=0, hole=DECK[:5], board=(), pot=15, stack=stack,
-        street_contribution=current_bet - call_amount, current_bet=current_bet,
-        call_amount=call_amount, min_raise_to=min_to, max_raise_to=max_to,
-        can_raise=can_raise, big_blind=10, opponents=1,
-    )
+A = game.Action
 
 
 def _wait(table, statuses, timeout=10):
@@ -32,101 +24,91 @@ def _wait(table, statuses, timeout=10):
     raise AssertionError(f"Table stuck in {table.state()['status']}")
 
 
-class ValidateActionTests(unittest.TestCase):
-    def test_legal_actions(self):
-        obs = _observation()
-        self.assertEqual(validate_action(obs, "fold").kind, "fold")
-        self.assertEqual(validate_action(obs, "call").kind, "call")
-        self.assertEqual(validate_action(obs, "raise", 25).amount, 25)
+def _play_out(table, choose):
+    """Play one hand, choosing each action with choose(state['to_act'])."""
+    table.start_hand()
+    while True:
+        state = _wait(table, {"your_turn", "hand_over"})
+        if state["status"] == "hand_over":
+            return state
+        table.submit(choose(state["to_act"]))
 
-    def test_illegal_actions_explain_why(self):
-        obs = _observation()
-        for kind, amount in (("check", 0), ("raise", 19), ("raise", 31), ("bet", 25),
-                             ("raise", "25"), ("dance", 0)):
-            with self.assertRaises(ValueError):
-                validate_action(obs, kind, amount)
-        free = _observation(call_amount=0, current_bet=0, min_to=10, max_to=15)
-        with self.assertRaises(ValueError):
-            validate_action(free, "fold")
-        with self.assertRaises(ValueError):
-            validate_action(free, "call")
-        self.assertEqual(validate_action(free, "bet", 10).kind, "bet")
 
-    def test_short_all_in_below_minimum_is_allowed(self):
-        obs = _observation(min_to=40, max_to=25)
-        self.assertEqual(validate_action(obs, "raise", 25).amount, 25)
+class ParseActionTests(unittest.TestCase):
+    def test_accepts_only_legal_official_actions(self):
+        legal = (A.FOLD, A.CHECK_CALL, A.RAISE_HALF, A.RAISE_POT)
+        self.assertEqual(parse_action("RAISE_POT", legal), A.RAISE_POT)
+        with self.assertRaises(ValueError):
+            parse_action("FOLD", (A.CHECK_CALL,))  # folding is not allowed when checking is free
+        with self.assertRaises(ValueError):
+            parse_action("raise", legal)
+        with self.assertRaises(ValueError):
+            parse_action("RAISE_HALF", (A.FOLD, A.CHECK_CALL))  # raise cap reached
 
 
 class TableTests(unittest.TestCase):
-    def _table(self):
-        return Table(CallingStationBot, "Station", seed=7, bot_delay=0)
+    def _table(self, bot=CallingStationBot, seed="t"):
+        return Table(bot, "Bot", seed=seed, bot_delay=0)
 
-    def test_plays_full_hands_and_keeps_score(self):
+    def test_plays_official_hands_and_keeps_score(self):
         table = self._table()
         total = 0
         for _ in range(6):
-            table.start_hand()
-            while True:
-                state = _wait(table, {"your_turn", "hand_over"})
-                if state["status"] == "hand_over":
-                    break
-                to_act = state["to_act"]
-                table.submit("call" if to_act["call_amount"] else "check")
+            state = _play_out(table, lambda t: "CHECK_CALL")
             self.assertTrue(state["result"]["showdown"])
             self.assertEqual(len(state["result"]["bot_hole"]), 5)
             self.assertEqual(len(state["board"]), 5)
-            self.assertEqual(state["you"]["stack"] + state["bot"]["stack"], 2_000)
+            self.assertEqual(state["you"]["stack"] + state["bot"]["stack"],
+                             2 * game.STARTING_STACK)
             total += state["result"]["net"]
         self.assertEqual(state["session"]["hands"], 6)
         self.assertEqual(state["session"]["net"], total)
+        self.assertEqual(state["session"]["blinds"], "1/2")
 
-    def test_fold_hides_bot_cards_and_alternates_button(self):
-        table = self._table()
+    def test_deals_match_the_official_dealer_and_button(self):
+        table = self._table(seed="replay")
         buttons = []
-        for _ in range(2):
+        for number in range(2):
             table.start_hand()
-            state = _wait(table, {"your_turn"})
-            buttons.append(state["button"])
-            if state["to_act"]["call_amount"]:
-                table.submit("fold")
-            else:  # big blind with a free check: bet, the station calls, then fold later
-                table.submit("check")
             state = _wait(table, {"your_turn", "hand_over"})
+            deal = game.make_deal("replay", number)
+            self.assertEqual(state["you"]["hole"], [game.card_to_str(c) for c in deal.hole_cards[0]])
+            buttons.append(state["button"])
             while state["status"] == "your_turn":
-                table.submit("check" if not state["to_act"]["call_amount"] else "fold")
+                table.submit("FOLD" if "FOLD" in state["to_act"]["legal"] else "CHECK_CALL")
                 state = _wait(table, {"your_turn", "hand_over"})
+            if not state["result"]["showdown"]:
+                self.assertIsNone(state["result"]["bot_hole"])  # folded hands stay hidden
         self.assertEqual(buttons, ["you", "bot"])
 
-    def test_never_asks_or_logs_a_check_after_a_called_bet(self):
-        from poker_bots import ManiacBot
-        table = Table(ManiacBot, "Maniac", seed=3, bot_delay=0)
+    def test_raise_buttons_show_the_official_amounts(self):
+        table = self._table(bot=ManiacBot)
+        table.start_hand()
+        state = _wait(table, {"your_turn"})
+        to_act = state["to_act"]
+        observation = table.hand.observation(0)
+        self.assertEqual(to_act["raise_half_to"], observation.raise_to.get(A.RAISE_HALF))
+        self.assertEqual(to_act["raise_pot_to"], observation.raise_to.get(A.RAISE_POT))
+        self.assertEqual(set(to_act["legal"]), {a.name for a in observation.legal_actions})
+
+    def test_raise_cap_and_all_in_against_a_maniac(self):
+        table = self._table(bot=ManiacBot)
         for _ in range(4):
-            table.start_hand()
-            while True:
-                state = _wait(table, {"your_turn", "hand_over"})
-                if state["status"] == "hand_over":
-                    break
-                to_act = state["to_act"]
-                self.assertTrue(to_act["call_amount"] or to_act["can_raise"]
-                                or to_act["current_bet"] == 0)
-                table.submit("call" if to_act["call_amount"] else "check")
-            log = state["log"]
-            for before, after in zip(log, log[1:]):
-                # A call that matches a bet ends the street (except preflop limps).
-                if (" call" in before["text"] and before["street"] != "Preflop"
-                        and after["street"] == before["street"]):
-                    self.fail(f"Action logged after a closing call: {log}")
+            state = _play_out(table, lambda t: "RAISE_POT" if "RAISE_POT" in t["legal"]
+                              else "CHECK_CALL")
+            self.assertIn(abs(state["result"]["net"]), (0, game.STARTING_STACK))
+            self.assertTrue(any("all-in" in entry["text"] for entry in state["log"]))
 
     def test_rejects_actions_out_of_turn_and_double_deals(self):
         table = self._table()
         with self.assertRaises(ValueError):
-            table.submit("call")
+            table.submit("CHECK_CALL")
         table.start_hand()
         _wait(table, {"your_turn"})
         with self.assertRaises(ValueError):
             table.start_hand()
         with self.assertRaises(ValueError):
-            table.submit("raise", 10**6)
+            table.submit("SHOVE")
         self.assertEqual(table.state()["status"], "your_turn")
 
 
