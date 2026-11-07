@@ -113,15 +113,48 @@ harness. Use `--bot` to include multiple submissions in the same round robin.
 with each possible starting hand and saves the winner per hand. `super_bot.py`
 (next section) reads that table to choose a strategy at the start of every hand.
 
-> **Do not start a full run casually.** The default run is about 724 million
-> poker hands and is meant for a large multi-core machine. Use `estimate`
-> (plays nothing) or `run --limit N` (a short trial) when working on the code.
+It runs in two stages:
 
-### What the search does, exactly
+1. **`qualify`**, run once: a round robin of all 201 strategies keeps the
+   **top 40**. The list is saved to `qualifiers.json` and never needs to be
+   recomputed.
+2. **`run`**, the per-hand search: compares only those 40 strategies for every
+   starting hand.
+
+> **Do not start a full run casually.** Qualifying is about 3 million poker
+> hands and the default per-hand search about 144 million. Both are meant for a
+> large multi-core machine. Use `estimate`, `qualify --estimate-only` (neither
+> plays anything) or `run --limit N` (a short trial) when working on the code.
+
+### Stage 1: the qualifying tournament (top 40)
+
+`qualify` plays every pair of strategies in the pool (default: all 201, so
+20,100 pairings) with `run_match`. Each pairing is played on every seed
+(default `1001-1003`, kept apart from the search seeds) for `--hands` hands
+(default 50). Strategies are ranked exactly like `run_tournament.py`: by the
+number of matches won (one match is one pairing on one seed), then by total
+net chips, then by name. The top `--top` (default 40) qualify.
+
+**Stored so it never runs again.** `qualify` writes:
+
+- `qualifiers.json`: `{"config": {...}, "top": 40, "qualified": [40 names, best first], "ranking": [every strategy's matches, match_wins, match_losses, match_ties, net_chips]}`. This is the file `run` reads.
+- `qualifier_matches.jsonl`: one line per finished match, `{"left", "right", "seed", "net": [left, right]}`.
+- `qualifier_config.json`: the settings, used to refuse a resume with different settings unless `--force`.
+
+Running `qualify` again with the same settings and `qualifiers.json` present
+prints the saved list and plays nothing. Delete `qualifiers.json` to rebuild
+it: matches already in `qualifier_matches.jsonl` are not replayed. An
+interrupted `qualify` resumes the same way. To use the list somewhere else,
+for example a copy committed to the repo or sent to another machine, pass
+`run --qualifiers path/to/qualifiers.json`.
+
+### Stage 2: what the per-hand search does, exactly
 
 For every starting hand `H`:
 
-1. Every **hero** strategy (default: all 201 built-ins) is given `H`.
+1. Every **hero** strategy is given `H`. The default heroes are `qualified`:
+   the 40 names in `qualifiers.json`. `run` stops with instructions if that
+   file is missing. `--heroes all|reference|lineup|NAME,…` bypasses qualifying.
 2. Each hero plays heads-up against every strategy in the **opponent field**.
    The default field is `lineup`, the 9 bots in the default
    `run_tournament.py` lineup, not all 201. Use `--opponents all` for the full
@@ -157,8 +190,9 @@ smallest relabelling (`canonical_hand()`), and `combos` records how many raw
 hands it stands for (1 to 24). `--all-combos` tests every raw hand instead,
 which is about 19 times more work.
 
-**Noise.** Ten random deals per hand is a small sample. The 180 generated
-variants differ only slightly, so the top spot among them is often luck.
+**Noise.** Ten random deals per hand is a small sample. Some of the 40
+qualifiers may be near-identical generated variants, so the top spot between
+them is often luck.
 `clear_winner` is true when `best` leads `runner_up` by more than
 `2 × sqrt(se_best² + se_runner_up²)`. That test is conservative, because the
 deals are shared. Add seeds to get more clear winners.
@@ -166,8 +200,12 @@ deals are shared. Add seeds to get more clear winners.
 ### Commands
 
 ```bash
-# Count the work without playing any hands (add --ms-per-hand X for a time estimate)
-python3 hand_strategy_search.py estimate --seeds 1-10
+# Stage 1, once: qualifying round robin, saves results/qualifiers.json (resumable)
+python3 hand_strategy_search.py qualify --out results --estimate-only   # size only
+python3 hand_strategy_search.py qualify --out results
+
+# Count the per-hand work without playing (add --ms-per-hand X for a time estimate)
+python3 hand_strategy_search.py estimate --out results --seeds 1-10
 
 # Short trial to measure speed: 20 hands, then check the timing it prints
 python3 hand_strategy_search.py run --out trial --seeds 1-10 --limit 20
@@ -175,7 +213,8 @@ python3 hand_strategy_search.py run --out trial --seeds 1-10 --limit 20
 # Full run on every CPU core (--workers N to limit); rerun the same command to resume
 python3 hand_strategy_search.py run --out results --seeds 1-10
 
-# Or split across machines: shard K of N on each, then copy all shard files into one folder
+# Or split across machines: copy qualifiers.json to each, run shard K of N on each,
+# then copy all shard files into one folder
 python3 hand_strategy_search.py run --out results --seeds 1-10 --shard 0/4
 
 # Build the tables from the shard files, then query them
@@ -187,7 +226,9 @@ Options shared by `estimate` and `run`:
 
 | Option | Default | Meaning |
 |---|---|---|
-| `--heroes` | `all` | Strategies compared: `all` (201), `reference` (21 hand-written), `lineup` (9), or comma-separated names from `run_tournament.py --list-strategies` |
+| `--heroes` | `qualified` | Strategies compared: `qualified` (the saved top 40), `all` (201), `reference` (21 hand-written), `lineup` (9), or comma-separated names from `run_tournament.py --list-strategies` |
+| `--out` | `hand_strategy_results` | Results folder; also where `qualifiers.json` is read from |
+| `--qualifiers` | `<out>/qualifiers.json` | Read the top strategies from another saved file |
 | `--opponents` | `lineup` | Field each hero plays against; same choices |
 | `--seeds` | `1-5` | `1-10`, `1,2,42`, or a mix |
 | `--deals-per-seed` | `2` | Opponent hand and board draws per seed |
@@ -197,8 +238,11 @@ Options shared by `estimate` and `run`:
 | `--limit N` | none | Only the first N hands of this shard |
 | `--workers N` | all cores | Worker processes |
 
-`run` also takes `--out` (default `hand_strategy_results`), `--force` and
-`--progress-every` (default 25). `merge` and `lookup` take only `--out`.
+`run` also takes `--force` and `--progress-every` (default 25). `merge` and
+`lookup` take only `--out`. `qualify` takes `--pool` (default `all`), `--top`
+(40), `--seeds` (`1001-1003`), `--hands` (50), `--stack`, `--small-blind`,
+`--big-blind`, `--out`, `--workers`, `--force`, `--estimate-only` and
+`--progress-every`.
 
 ### Resuming and settings safety
 
@@ -214,10 +258,79 @@ Options shared by `estimate` and `run`:
   the first copy wins. It reports how many of the expected hands it found, so
   a missing shard shows up as a count below 19,998.
 
+### Shortening the run if it takes too long
+
+Total work is simple to predict:
+
+- Qualifying hands = `pool × (pool − 1) / 2 × qualify seeds × --hands`
+- Search hands = `starting hands × heroes × opponents × seeds × deals_per_seed × 2`
+
+Every factor is a setting. Check any combination first with
+`qualify --estimate-only` and `estimate` (neither plays a hand). Time a short
+trial with `run --limit 20` to get milliseconds per hand, then pass that to
+`estimate --ms-per-hand X --workers N` for a run time. The levers, roughly in
+order of how much they save for what they cost:
+
+| Lever | Setting | Effect on work | Cost to quality |
+|---|---|---|---|
+| Fewer heroes | `qualify --top 20` (or 10) | Search scales linearly: 40 → 20 halves it | SuperBot chooses from fewer strategies |
+| Fewer opponents | `--opponents ShortDeckPLO,TightAggressive,LooseAggressive` | Linear: 9 → 3 is ⅓ | Bot tuned to a narrower field |
+| Fewer seeds | `run --seeds 1-3` | Linear: 5 → 3 is 60% | More noise, fewer `clear_winner` hands |
+| One deal per seed | `--deals-per-seed 1` | Halves the search | More noise |
+| Smaller qualifying pool | `qualify --pool reference` (21) or a name list | Pairings fall from 20,100 to 210 | Generated variants never compete |
+| Shorter qualifying matches | `qualify --hands 20`, `--seeds 1001` | Linear | Noisier top-40 ranking |
+| Skip qualifying | `run --heroes reference` or `--heroes NAME,NAME,…` | No stage 1 at all | You choose the heroes yourself |
+| Reuse a saved list | `run --qualifiers saved/qualifiers.json` | No stage 1 at all | None, if the saved list suits you |
+| Keep suit symmetry | the default; avoid `--all-combos` | `--all-combos` is ~19× more | None |
+| More machines | `--shard K/N` on N machines | Same total, ~1/N of the wall time | None |
+| All cores | the default; `--workers N` only to limit | Wall time scales with cores | None |
+| Partial results | stop any time, then `merge` | Use what has finished | Missing hands use SuperBot's fallback |
+
+Example totals, from the estimate commands:
+
+| Settings | Qualifying hands | Search hands |
+|---|---|---|
+| Defaults (top 40, 9 opponents, seeds 1-5, 2 deals) | 3,015,000 | 143,985,600 |
+| `run --seeds 1-3` | 3,015,000 | 86,391,360 |
+| `run --deals-per-seed 1` | 3,015,000 | 71,992,800 |
+| `qualify --top 20 --hands 20`; `run --seeds 1-3 --deals-per-seed 1` | 1,206,000 | 21,597,840 |
+| `qualify --pool reference --top 10 --seeds 1001 --hands 30`; `run --opponents ShortDeckPLO,TightAggressive,LooseAggressive --seeds 1-3 --deals-per-seed 1` | 6,300 | 3,599,640 |
+| Defaults with `--all-combos` | 3,015,000 | 2,714,342,400 |
+
+`merge` works on whatever shard lines exist, and SuperBot uses its fallback
+for any hand not yet in the table. So a run can be stopped early and still
+produce a usable SuperBot, and a later `run` with the same settings fills in
+the rest.
+
+Options that need care or code changes, none of them tested here:
+
+- **PyPy.** The code is pure Python with no third-party packages (`rl_common.py`
+  is not used by the search), so `pypy3 hand_strategy_search.py …` should run
+  unchanged. Pure-Python loops like these often run several times faster
+  under PyPy. Time a `--limit 20` trial with both interpreters before
+  committing to it.
+- **Faster equity estimates.** Most of the time goes to `estimate_equity`
+  in `poker_bots.py`, a Monte Carlo loop over `omaha_rank`. Reducing each
+  strategy's `equity_samples` changes how the strategies play, so the results
+  would describe different bots; don't do it just for speed. A faster
+  `omaha_rank` (for example, a precomputed rank lookup table) keeps the
+  results identical and is the best code-level speed-up. Check it against the
+  current function on many random hands.
+- **GPU.** The code does not use a GPU, and the betting logic would not gain
+  from one: each hand is a branching chain of decisions. Only the equity
+  sampling could be moved to a GPU, by rewriting `omaha_rank` and
+  `estimate_equity` as batched array code (for example in PyTorch or CuPy).
+  That is a large rewrite, and the equity values must match the current ones
+  or every strategy's behaviour shifts. Try PyPy, more cores and the settings
+  above first.
+
 ### Output files (all in `--out`)
 
 | File | Written by | Contents |
 |---|---|---|
+| `qualifiers.json` | `qualify` | The saved top 40 (`qualified`) and the full ranking |
+| `qualifier_matches.jsonl` | `qualify` | Every finished qualifying match, for resuming |
+| `qualifier_config.json` | `qualify` | Qualifying settings |
 | `run_config.json` | `run` | The settings: `heroes`, `opponents`, `seeds`, `deals_per_seed`, `starting_stack`, `small_blind`, `big_blind`, `all_combos` |
 | `shard-*.jsonl` | `run` | Raw results, one JSON object per hand (format below) |
 | `best_strategy_by_hand.json` | `merge` | The table `SuperBot` reads |
@@ -257,6 +370,7 @@ first, rather than formatting a key yourself.
 - `evaluate_hand(hand, SearchConfig(...))`: `{hero: [n, sum_bb, sum_sq_bb]}` for one hand.
 - `summarize_hand(stats)`: the per-hand summary dict shown above.
 - `load_best_table(path)` and `best_strategy_for(hole, table)`: lookups, `None` for hands not in the table.
+- `rank_qualifiers(matches, pool)`: the qualifying ranking. `load_qualified(out, path=None)` reads the saved top strategies.
 
 ## Super bot
 
@@ -270,6 +384,8 @@ strategy keeps one instance for the bot's lifetime.
   A results folder or the JSON file itself both work. A missing table raises
   `FileNotFoundError` when the bot is created. A table naming a strategy this
   code doesn't have raises `ValueError`.
+- **Choices:** the table only names strategies the search compared, so with
+  the default settings SuperBot only ever picks from the qualified top 40.
 - **Fallback:** hands not in the table use `fallback=` (default `ShortDeckPLO`).
 - **`require_clear_winner=True`:** hands whose `clear_winner` is false also use
   the fallback.

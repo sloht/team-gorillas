@@ -12,22 +12,29 @@ Starting hands are grouped by suit symmetry by default: the 376,992 possible
 five-card hands collapse to 19,998 distinct hands, and each result applies to
 every suit relabelling of that hand. Pass --all-combos to test every raw combo.
 
+Only the top 40 strategies are compared per hand. A qualifying round robin of
+all 201 strategies picks them first, ranked like run_tournament.py (opponents
+beaten, then net chips).
+
 The run is long, so it is built for a large machine:
 
-    # 1. See how much work a configuration is, without playing any hands
-    python3 hand_strategy_search.py estimate --seeds 1-10
+    # 1. Qualifying round robin; writes results/qualifiers.json (resumable)
+    python3 hand_strategy_search.py qualify --out results
 
-    # 2. Run it (uses every CPU core; safe to stop and rerun, it resumes)
+    # 2. See how much work the per-hand search is, without playing any hands
+    python3 hand_strategy_search.py estimate --out results --seeds 1-10
+
+    # 3. Run it (uses every CPU core; safe to stop and rerun, it resumes)
     python3 hand_strategy_search.py run --out results --seeds 1-10
 
-    #    Optionally split across machines: run shard k of N on each one,
-    #    then copy every shard file into one results folder
+    #    Optionally split across machines: copy qualifiers.json to each one,
+    #    run shard k of N, then copy every shard file into one results folder
     python3 hand_strategy_search.py run --out results --shard 0/4 --seeds 1-10
 
-    # 3. Combine the shard files into the best-strategy table
+    # 4. Combine the shard files into the best-strategy table
     python3 hand_strategy_search.py merge --out results
 
-    # 4. Look up the best strategy for a hand
+    # 5. Look up the best strategy for a hand
     python3 hand_strategy_search.py lookup --out results "As Kh Qd Jc Ts"
 """
 
@@ -54,7 +61,7 @@ from hand_keys import (  # re-exported for existing callers
     format_hand, hand_key, parse_hand,
 )
 from run_tournament import ALL_BUILTIN_STRATEGIES, REFERENCE_STRATEGIES
-from short_deck_plo import DECK, Card, deck_for_deal, play_hand
+from short_deck_plo import DECK, Card, deck_for_deal, play_hand, run_match
 
 _STRATEGY_LOOKUP: dict[str, Callable[[], object]] = dict(ALL_BUILTIN_STRATEGIES)
 STRATEGY_SETS: dict[str, tuple[str, ...]] = {
@@ -63,6 +70,10 @@ STRATEGY_SETS: dict[str, tuple[str, ...]] = {
     "lineup": tuple(name for name, _ in REFERENCE_STRATEGIES[:9]),
 }
 CONFIG_FILE = "run_config.json"
+QUALIFIERS_FILE = "qualifiers.json"
+QUALIFIER_CONFIG_FILE = "qualifier_config.json"
+QUALIFIER_MATCHES_FILE = "qualifier_matches.jsonl"
+DEFAULT_TOP = 40
 BEST_CSV = "best_strategy_by_hand.csv"
 SUMMARY_CSV = "strategy_summary.csv"
 
@@ -229,8 +240,154 @@ def _work(task: tuple[tuple[Card, ...], int]) -> dict:
 
 
 # --------------------------------------------------------------------------- #
+# Qualifying tournament: pick the top strategies before the per-hand search
+# --------------------------------------------------------------------------- #
+
+def _qualify_work(task: tuple) -> dict:
+    left, right, seed, hands, stack, small_blind, big_blind = task
+    result = run_match(_STRATEGY_LOOKUP[left](), _STRATEGY_LOOKUP[right](), hands=hands,
+                       starting_stack=stack, small_blind=small_blind,
+                       big_blind=big_blind, seed=seed)
+    return {"left": left, "right": right, "seed": seed, "net": list(result.net_chips)}
+
+
+def rank_qualifiers(matches: Iterable[dict], pool: Sequence[str]) -> list[dict]:
+    """Rank strategies like run_tournament.py: opponents beaten first, then net chips.
+
+    Each finished match is one (pairing, seed) result. Names tie-break alphabetically.
+    """
+    table = {name: {"name": name, "matches": 0, "match_wins": 0, "match_losses": 0,
+                    "match_ties": 0, "net_chips": 0} for name in pool}
+    for match in matches:
+        left, right = table[match["left"]], table[match["right"]]
+        left_net, right_net = match["net"]
+        for row, own, other in ((left, left_net, right_net), (right, right_net, left_net)):
+            row["matches"] += 1
+            row["net_chips"] += own
+            if own > other:
+                row["match_wins"] += 1
+            elif own < other:
+                row["match_losses"] += 1
+            else:
+                row["match_ties"] += 1
+    return sorted(table.values(),
+                  key=lambda row: (-row["match_wins"], -row["net_chips"], row["name"]))
+
+
+def load_qualified(out: str | Path, path: Optional[str | Path] = None) -> tuple[str, ...]:
+    """Read the saved top strategies from --qualifiers, or from qualifiers.json in --out."""
+    path = Path(path) if path else Path(out) / QUALIFIERS_FILE
+    if not path.exists():
+        raise SystemExit(
+            f"No {path}. Run the qualifying tournament first:\n"
+            f"  python3 hand_strategy_search.py qualify --out {out}\n"
+            "or choose heroes yourself with --heroes all|reference|lineup|NAME,NAME."
+        )
+    return tuple(json.loads(path.read_text())["qualified"])
+
+
+def command_qualify(args: argparse.Namespace) -> None:
+    pool = args.pool
+    if args.top < 1:
+        raise SystemExit("--top must be at least 1.")
+    if args.hands < 1:
+        raise SystemExit("--hands must be at least 1.")
+    settings = {"pool": list(pool), "seeds": list(args.seeds), "hands_per_match": args.hands,
+                "starting_stack": args.stack, "small_blind": args.small_blind,
+                "big_blind": args.big_blind}
+    pairings = [(pool[i], pool[j]) for i in range(len(pool)) for j in range(i + 1, len(pool))]
+    total_matches = len(pairings) * len(args.seeds)
+    print(f"Qualifying: {len(pool)} strategies, {len(pairings):,} pairings x "
+          f"{len(args.seeds)} seeds x {args.hands} hands = "
+          f"{total_matches * args.hands:,} poker hands; keeping the top {args.top}.",
+          file=sys.stderr)
+    if args.estimate_only:
+        return
+
+    out = Path(args.out)
+    saved_path = out / QUALIFIERS_FILE
+    if saved_path.exists() and not args.force:
+        saved = json.loads(saved_path.read_text())
+        if saved.get("config") == settings and saved.get("top") == args.top:
+            print(f"Already qualified; using the saved list in {saved_path} "
+                  "(delete it to run the tournament again):")
+            for place, name in enumerate(saved["qualified"], 1):
+                print(f"  {place:>3}. {name}")
+            return
+    out.mkdir(parents=True, exist_ok=True)
+    config_path = out / QUALIFIER_CONFIG_FILE
+    if config_path.exists():
+        if json.loads(config_path.read_text()) != settings and not args.force:
+            raise SystemExit(f"{config_path} was written with different settings. Use a new "
+                             "--out folder, or pass --force (not recommended).")
+    else:
+        config_path.write_text(json.dumps(settings, indent=2))
+
+    matches_path = out / QUALIFIER_MATCHES_FILE
+    finished: dict[tuple, dict] = {}
+    if matches_path.exists():
+        with matches_path.open() as handle:
+            for line in handle:
+                try:
+                    match = json.loads(line)
+                    finished[(match["left"], match["right"], match["seed"])] = match
+                except (json.JSONDecodeError, KeyError):
+                    continue
+    tasks = [(left, right, seed, args.hands, args.stack, args.small_blind, args.big_blind)
+             for seed in args.seeds for left, right in pairings
+             if (left, right, seed) not in finished]
+    print(f"  {len(finished):,} matches already done, {len(tasks):,} to go.", file=sys.stderr)
+
+    if tasks:
+        workers = args.workers or os.cpu_count() or 1
+        started = time.time()
+        with matches_path.open("a") as handle:
+            pool_ = None
+            if workers == 1:
+                results = map(_qualify_work, tasks)
+            else:
+                pool_ = mp.get_context("spawn" if sys.platform == "win32" else "fork").Pool(workers)
+                results = pool_.imap_unordered(_qualify_work, tasks, chunksize=4)
+            try:
+                for count, match in enumerate(results, 1):
+                    handle.write(json.dumps(match, separators=(",", ":")) + "\n")
+                    handle.flush()
+                    finished[(match["left"], match["right"], match["seed"])] = match
+                    if count % args.progress_every == 0 or count == len(tasks):
+                        elapsed = time.time() - started
+                        left_h = elapsed / count * (len(tasks) - count) / 3600
+                        print(f"  {count:,}/{len(tasks):,} matches, ~{left_h:.2f} h left",
+                              file=sys.stderr)
+            finally:
+                if pool_ is not None:
+                    pool_.terminate()
+                    pool_.join()
+
+    wanted = {(left, right, seed) for seed in args.seeds for left, right in pairings}
+    ranking = rank_qualifiers((m for key, m in finished.items() if key in wanted), pool)
+    qualified = [row["name"] for row in ranking[:args.top]]
+    (out / QUALIFIERS_FILE).write_text(json.dumps(
+        {"config": settings, "top": args.top, "qualified": qualified, "ranking": ranking},
+        indent=1))
+    print(f"Top {len(qualified)} written to {out / QUALIFIERS_FILE}:")
+    for place, row in enumerate(ranking[:args.top], 1):
+        print(f"  {place:>3}. {row['name']:<24} beat {row['match_wins']:>4} of "
+              f"{row['matches']:<4} net {row['net_chips']:+,}")
+
+
+# --------------------------------------------------------------------------- #
 # Commands
 # --------------------------------------------------------------------------- #
+
+def _resolve_heroes(args: argparse.Namespace) -> tuple[str, ...]:
+    if args.heroes != "qualified":
+        return resolve_strategies(args.heroes)
+    path = Path(args.qualifiers) if args.qualifiers else Path(args.out) / QUALIFIERS_FILE
+    if args.command == "estimate" and not path.exists():
+        print(f"(No {path} yet; estimating with {DEFAULT_TOP} qualified heroes.)")
+        return STRATEGY_SETS["all"][:DEFAULT_TOP]
+    return load_qualified(args.out, path)
+
 
 def _config_from_args(args: argparse.Namespace) -> SearchConfig:
     if args.deals_per_seed < 1:
@@ -238,7 +395,7 @@ def _config_from_args(args: argparse.Namespace) -> SearchConfig:
     if args.small_blind <= 0 or args.big_blind < args.small_blind or args.stack <= 0:
         raise SystemExit("Stack and blinds must be positive, with big blind >= small blind.")
     return SearchConfig(
-        heroes=args.heroes,
+        heroes=_resolve_heroes(args),
         opponents=args.opponents,
         seeds=args.seeds,
         deals_per_seed=args.deals_per_seed,
@@ -471,9 +628,14 @@ def build_parser() -> argparse.ArgumentParser:
     commands = parser.add_subparsers(dest="command", required=True)
 
     def simulation_options(command: argparse.ArgumentParser) -> None:
-        command.add_argument("--heroes", type=resolve_strategies, default="all",
-                             help="Strategies to compare: all (201), reference (21), "
-                                  "lineup (9), or comma-separated names. Default: all.")
+        command.add_argument("--heroes", default="qualified",
+                             help="Strategies to compare: qualified (the top strategies from "
+                                  "'qualify', read from --out), all (201), reference (21), "
+                                  "lineup (9), or comma-separated names. Default: qualified.")
+        command.add_argument("--out", default="hand_strategy_results", help="Results folder.")
+        command.add_argument("--qualifiers",
+                             help="A saved qualifiers.json to read the top strategies from. "
+                                  "Default: qualifiers.json in --out.")
         command.add_argument("--opponents", type=resolve_strategies, default="lineup",
                              help="Field each hero plays against; same choices. Default: lineup "
                                   "(the 9 bots in the default tournament).")
@@ -499,9 +661,31 @@ def build_parser() -> argparse.ArgumentParser:
                           help="Measured milliseconds per poker hand, to estimate run time.")
     estimate.set_defaults(func=command_estimate)
 
+    qualify = commands.add_parser(
+        "qualify", help="Round robin of all strategies; keep the top N for the per-hand search.")
+    qualify.add_argument("--pool", type=resolve_strategies, default="all",
+                         help="Strategies that compete to qualify. Default: all (201).")
+    qualify.add_argument("--top", type=int, default=DEFAULT_TOP,
+                         help=f"How many qualify. Default: {DEFAULT_TOP}.")
+    qualify.add_argument("--seeds", type=parse_seeds, default="1001-1003",
+                         help="Round-robin seeds; keep them apart from the search seeds. "
+                              "Default: 1001-1003.")
+    qualify.add_argument("--hands", type=int, default=50,
+                         help="Hands per match (per pairing per seed). Default: 50.")
+    qualify.add_argument("--stack", type=int, default=1_000)
+    qualify.add_argument("--small-blind", type=int, default=5)
+    qualify.add_argument("--big-blind", type=int, default=10)
+    qualify.add_argument("--out", default="hand_strategy_results", help="Results folder.")
+    qualify.add_argument("--workers", type=int, help="Worker processes. Default: every CPU core.")
+    qualify.add_argument("--force", action="store_true",
+                         help="Allow resuming into a folder made with different settings.")
+    qualify.add_argument("--estimate-only", action="store_true",
+                         help="Print the amount of work and stop without playing.")
+    qualify.add_argument("--progress-every", type=int, default=500)
+    qualify.set_defaults(func=command_qualify)
+
     run = commands.add_parser("run", help="Play the simulation and write shard results.")
     simulation_options(run)
-    run.add_argument("--out", default="hand_strategy_results", help="Results folder.")
     run.add_argument("--force", action="store_true",
                      help="Allow resuming into a folder made with different settings.")
     run.add_argument("--progress-every", type=int, default=25)

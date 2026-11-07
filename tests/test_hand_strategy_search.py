@@ -1,10 +1,15 @@
+import io
 import json
 import tempfile
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
 from hand_strategy_search import (
     SearchConfig,
+    load_qualified,
+    main,
+    rank_qualifiers,
     best_strategy_for,
     canonical_hand,
     command_merge,
@@ -128,6 +133,55 @@ class MergeAndLookupTests(unittest.TestCase):
             self.assertEqual(result["best"], "Random")
             self.assertEqual(result["combos"], 24)
             self.assertIsNone(best_strategy_for("6s 7s 8s 9s Ts", table))
+
+
+class QualifyTests(unittest.TestCase):
+    def test_rank_by_opponents_beaten_then_chips(self):
+        matches = [
+            {"left": "A", "right": "B", "seed": 1, "net": [50, -50]},
+            {"left": "A", "right": "C", "seed": 1, "net": [-10, 10]},
+            {"left": "B", "right": "C", "seed": 1, "net": [300, -300]},
+        ]
+        ranking = rank_qualifiers(matches, ["A", "B", "C"])
+        self.assertEqual([row["name"] for row in ranking], ["B", "A", "C"])
+        self.assertEqual(ranking[0]["match_wins"], 1)
+
+    def test_qualify_writes_top_n_and_resumes(self):
+        with tempfile.TemporaryDirectory() as folder, redirect_stdout(io.StringIO()) as out, \
+                redirect_stderr(io.StringIO()) as log:
+            args = ["qualify", "--out", folder, "--pool", "CallingStation,Random,Maniac",
+                    "--top", "2", "--seeds", "1,2", "--hands", "2", "--workers", "1"]
+            main(args)
+            data = json.loads(Path(folder, "qualifiers.json").read_text())
+            self.assertEqual(len(data["qualified"]), 2)
+            self.assertEqual(len(data["ranking"]), 3)
+            self.assertEqual(sum(row["matches"] for row in data["ranking"]), 3 * 2 * 2)
+            self.assertEqual(load_qualified(folder), tuple(data["qualified"]))
+
+            # Saved: a second qualify reads the file and plays nothing.
+            main(args)
+            self.assertIn("Already qualified", out.getvalue())
+            self.assertNotIn("matches already done", log.getvalue().split("Qualifying:")[-1])
+
+            # Lost qualifiers.json but kept the match log: rebuilt without replaying.
+            Path(folder, "qualifiers.json").unlink()
+            main(args)
+            self.assertIn("6 matches already done, 0 to go", log.getvalue())
+            self.assertEqual(load_qualified(folder), tuple(data["qualified"]))
+
+            # A copied qualifiers.json can be used from anywhere with --qualifiers.
+            with tempfile.TemporaryDirectory() as other:
+                copy = Path(other, "top.json")
+                copy.write_text(Path(folder, "qualifiers.json").read_text())
+                main(["estimate", "--out", other, "--qualifiers", str(copy)])
+                self.assertIn(f"Hero strategies        : 2", out.getvalue())
+
+    def test_run_needs_qualifiers_unless_heroes_given(self):
+        with tempfile.TemporaryDirectory() as folder, redirect_stdout(io.StringIO()):
+            with self.assertRaises(SystemExit) as stopped:
+                main(["run", "--out", folder, "--limit", "1", "--workers", "1"])
+            self.assertIn("qualify", str(stopped.exception))
+            main(["estimate", "--out", folder])  # estimate works before qualifying
 
 
 if __name__ == "__main__":
