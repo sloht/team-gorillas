@@ -1,0 +1,21 @@
+model: openrouter/anthropic/claude-sonnet-5.5
+weak-model: openrouter/deepseek/deepseek-v4.1-flash-1017  
+read:
+  - PROJECT.md
+cache-prompts: true
+cache-keepalive-pings: 5
+gitignore: false
+check-update: false
+analytics-disable: true
+map-tokens: 1024
+
+# Extra settings for specific models must fall under the 'model-settings' key
+model-settings:
+  - name: openrouter/anthropic/claude-sonnet-5.5
+    extra_params:
+      extra_body:
+        provider:
+          order:
+            - Anthropic
+          allow_fallbacks: false
+          data_collection: deny
