@@ -45,17 +45,17 @@ import time
 from collections import defaultdict
 from dataclasses import asdict, dataclass
 from hashlib import blake2b
-from itertools import combinations, permutations
+from itertools import combinations
 from pathlib import Path
 from typing import Callable, Iterable, Optional, Sequence
 
+from hand_keys import (  # re-exported for existing callers
+    BEST_JSON, RANK_TEXT, SUIT_TEXT, TEXT_RANK, canonical_hand, format_card,
+    format_hand, hand_key, parse_hand,
+)
 from run_tournament import ALL_BUILTIN_STRATEGIES, REFERENCE_STRATEGIES
 from short_deck_plo import DECK, Card, deck_for_deal, play_hand
 
-RANK_TEXT = {6: "6", 7: "7", 8: "8", 9: "9", 10: "T", 11: "J", 12: "Q", 13: "K", 14: "A"}
-TEXT_RANK = {text: rank for rank, text in RANK_TEXT.items()}
-SUIT_TEXT = "shdc"
-_SUIT_PERMUTATIONS = tuple(permutations(range(4)))
 _STRATEGY_LOOKUP: dict[str, Callable[[], object]] = dict(ALL_BUILTIN_STRATEGIES)
 STRATEGY_SETS: dict[str, tuple[str, ...]] = {
     "all": tuple(name for name, _ in ALL_BUILTIN_STRATEGIES),
@@ -63,7 +63,6 @@ STRATEGY_SETS: dict[str, tuple[str, ...]] = {
     "lineup": tuple(name for name, _ in REFERENCE_STRATEGIES[:9]),
 }
 CONFIG_FILE = "run_config.json"
-BEST_JSON = "best_strategy_by_hand.json"
 BEST_CSV = "best_strategy_by_hand.csv"
 SUMMARY_CSV = "strategy_summary.csv"
 
@@ -71,38 +70,6 @@ SUMMARY_CSV = "strategy_summary.csv"
 # --------------------------------------------------------------------------- #
 # Cards and starting hands
 # --------------------------------------------------------------------------- #
-
-def format_card(card: Card) -> str:
-    return RANK_TEXT[card[0]] + SUIT_TEXT[card[1]]
-
-
-def format_hand(hand: Sequence[Card]) -> str:
-    return " ".join(format_card(card) for card in sorted(hand, reverse=True))
-
-
-def parse_hand(text: str) -> tuple[Card, ...]:
-    """Parse cards such as "As Kh Qd Jc Ts" (spaces and commas optional)."""
-    compact = text.replace(",", "").replace(" ", "")
-    if len(compact) != 10:
-        raise ValueError(f"Expected five cards such as 'As Kh Qd Jc Ts', got {text!r}.")
-    cards = []
-    for index in range(0, 10, 2):
-        rank_text, suit_text = compact[index].upper(), compact[index + 1].lower()
-        if rank_text not in TEXT_RANK or suit_text not in SUIT_TEXT:
-            raise ValueError(f"{compact[index:index + 2]!r} is not a Short Deck card (6-A, s/h/d/c).")
-        cards.append((TEXT_RANK[rank_text], SUIT_TEXT.index(suit_text)))
-    if len(set(cards)) != 5:
-        raise ValueError("The five cards must be different.")
-    return tuple(cards)
-
-
-def canonical_hand(hand: Iterable[Card]) -> tuple[Card, ...]:
-    """Return the representative of a hand's suit-symmetry class."""
-    return min(
-        tuple(sorted((rank, mapping[suit]) for rank, suit in hand))
-        for mapping in _SUIT_PERMUTATIONS
-    )
-
 
 def starting_hands(all_combos: bool = False) -> list[tuple[tuple[Card, ...], int]]:
     """Return every starting hand to test with its number of raw combos, in a fixed order."""
@@ -112,10 +79,6 @@ def starting_hands(all_combos: bool = False) -> list[tuple[tuple[Card, ...], int
     for hand in combinations(DECK, 5):
         weights[canonical_hand(hand)] += 1
     return sorted(weights.items())
-
-
-def hand_key(hand: Sequence[Card]) -> str:
-    return format_hand(hand)
 
 
 # --------------------------------------------------------------------------- #

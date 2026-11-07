@@ -26,7 +26,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
-from hand_strategy_search import BEST_JSON, canonical_hand, hand_key
+from hand_keys import BEST_JSON, canonical_hand, hand_key
 from poker_bots import PokerBot
 from run_tournament import ALL_BUILTIN_STRATEGIES
 from short_deck_plo import Action, Observation

@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Play SuperBot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --baize: #16382F;
+    --rail: #0E241E;
+    --rail-line: #24493F;
+    --stock: #FBF7EE;
+    --brass: #D9A441;
+    --brass-ink: #2A1E05;
+    --ink: #E8EFEA;
+    --muted: #9DB5AA;
+    --spade: #1C1C1C;
+    --heart: #C8312F;
+    --diamond: #2459C4;
+    --club: #22803F;
+    --win: #7FD49A;
+    --lose: #F08A80;
+    --display: "Barlow Condensed", "Arial Narrow", sans-serif;
+    --body: "Barlow", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--rail); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.45; }
+  button, input { font: inherit; color: inherit; }
+  :focus-visible { outline: 3px solid var(--brass); outline-offset: 2px; }
+
+  .page { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; max-width: 1180px; margin: 0 auto; padding: 20px 16px 32px; }
+  .table { background: var(--baize); border: 1px solid var(--rail-line); border-radius: 28px; padding: 24px 28px; display: grid; gap: 22px; }
+
+  .topline { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+  .topline h1 { margin: 0; font-family: var(--display); font-weight: 700; font-size: 1.6rem; letter-spacing: .01em; }
+  .score { font-family: var(--display); font-size: 1.15rem; color: var(--muted); }
+  .score strong { font-weight: 700; color: var(--ink); }
+  .score .up { color: var(--win); } .score .down { color: var(--lose); }
+
+  .seat { display: grid; gap: 10px; }
+  .seat-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+  .seat-name { font-weight: 600; font-size: 1.05rem; }
+  .chips { font-family: var(--display); font-size: 1.25rem; font-weight: 600; }
+  .chips small { font-family: var(--body); font-size: .85rem; font-weight: 400; color: var(--muted); margin-right: 4px; }
+  .button-chip { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--stock); color: var(--spade); font-family: var(--display); font-weight: 700; font-size: .9rem; }
+  .street-bet { font-family: var(--display); font-size: 1.1rem; color: var(--brass); }
+
+  .cards { display: flex; gap: 8px; flex-wrap: wrap; min-height: 100px; }
+  .card { width: 70px; height: 100px; border-radius: 8px; background: var(--stock); color: var(--spade); display: grid; grid-template-rows: auto 1fr; padding: 4px 8px; box-shadow: 0 2px 0 rgba(0,0,0,.35); position: relative; }
+  .card .rank { font-family: var(--display); font-weight: 700; font-size: 2.6rem; line-height: 1; }
+  .card .suit { font-size: 1.9rem; line-height: 1; align-self: end; justify-self: end; }
+  .card.s { color: var(--spade); } .card.h { color: var(--heart); } .card.d { color: var(--diamond); } .card.c { color: var(--club); }
+  .card.back { background: repeating-linear-gradient(45deg, #7A2E2A 0 6px, #8E3A35 6px 12px); border: 4px solid var(--stock); }
+  .card.slot { background: transparent; border: 2px dashed var(--rail-line); box-shadow: none; }
+  .you .card { width: 84px; height: 120px; }
+  .you .card .rank { font-size: 3.2rem; }
+  .you .card .suit { font-size: 2.3rem; }
+  .card.deal { animation: deal .22s ease-out both; }
+  @keyframes deal { from { transform: translateY(-10px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+  .middle { display: flex; align-items: center; gap: 28px; flex-wrap: wrap; padding: 18px 0; border-top: 1px solid var(--rail-line); border-bottom: 1px solid var(--rail-line); }
+  .pot { font-family: var(--display); }
+  .pot .amount { font-size: 2.4rem; font-weight: 700; color: var(--brass); line-height: 1; }
+  .pot .label { color: var(--muted); font-family: var(--body); font-size: .9rem; }
+
+  .status { min-height: 1.5em; font-size: 1.05rem; }
+  .status.result-win { color: var(--win); } .status.result-lose { color: var(--lose); }
+  .status .strategy { color: var(--muted); display: block; font-size: .95rem; }
+  .error { color: var(--lose); min-height: 1.2em; font-size: .95rem; }
+
+  .controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .btn { border: 0; border-radius: 10px; padding: 10px 18px; font-weight: 600; cursor: pointer; background: var(--rail); color: var(--ink); border: 1px solid var(--rail-line); min-height: 44px; }
+  .btn:hover:not(:disabled) { background: #163129; }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.primary { background: var(--brass); color: var(--brass-ink); border-color: var(--brass); }
+  .btn.primary:hover:not(:disabled) { background: #E6B451; }
+  .btn kbd { font-family: var(--body); font-size: .75rem; opacity: .65; margin-left: 6px; }
+  .raise { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 6px 10px; border-radius: 12px; background: var(--rail); border: 1px solid var(--rail-line); }
+  .raise input[type=range] { width: 160px; accent-color: var(--brass); }
+  .raise input[type=number] { width: 84px; padding: 8px; border-radius: 8px; border: 1px solid var(--rail-line); background: var(--baize); font-family: var(--display); font-size: 1.1rem; }
+  .size { padding: 6px 10px; border-radius: 8px; border: 1px solid var(--rail-line); background: transparent; cursor: pointer; font-size: .9rem; min-height: 36px; }
+  .size:hover { border-color: var(--brass); }
+
+  .log { background: var(--baize); border: 1px solid var(--rail-line); border-radius: 20px; padding: 18px 20px; align-self: start; max-height: calc(100vh - 40px); overflow: auto; position: sticky; top: 20px; }
+  .log h2 { margin: 0 0 10px; font-family: var(--display); font-size: 1.25rem; font-weight: 600; }
+  .log ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+  .log li { font-size: .95rem; }
+  .log li.bot { color: var(--muted); }
+  .log li.street { margin-top: 8px; font-family: var(--display); font-weight: 600; color: var(--brass); }
+  .log .empty { color: var(--muted); font-size: .95rem; }
+  .help { color: var(--muted); font-size: .85rem; margin-top: 14px; }
+
+  @media (max-width: 860px) {
+    .page { grid-template-columns: 1fr; }
+    .log { position: static; max-height: none; }
+    .table { padding: 18px 16px; border-radius: 20px; }
+    .card { width: 54px; height: 78px; padding: 3px 6px; }
+    .card .rank { font-size: 2rem; } .card .suit { font-size: 1.4rem; }
+    .you .card { width: 58px; height: 84px; }
+    .you .card .rank { font-size: 2.2rem; } .you .card .suit { font-size: 1.6rem; }
+    .raise input[type=range] { width: 120px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .card.deal { animation: none; } }
+</style>
+</head>
+<body>
+<main class="page">
+  <section class="table" aria-label="Poker table">
+    <div class="topline">
+      <h1 id="title">You vs SuperBot</h1>
+      <div class="score" id="score">No hands yet</div>
+    </div>
+
+    <div class="seat bot">
+      <div class="seat-head">
+        <span class="seat-name" id="bot-name">SuperBot</span>
+        <span class="chips" id="bot-stack"></span>
+        <span id="bot-button"></span>
+        <span class="street-bet" id="bot-bet"></span>
+      </div>
+      <div class="cards" id="bot-cards" aria-label="Opponent's cards"></div>
+    </div>
+
+    <div class="middle">
+      <div class="cards" id="board" aria-label="Board"></div>
+      <div class="pot"><div class="amount" id="pot">0</div><div class="label" id="pot-label">in the pot</div></div>
+    </div>
+
+    <div class="seat you">
+      <div class="seat-head">
+        <span class="seat-name">You</span>
+        <span class="chips" id="you-stack"></span>
+        <span id="you-button"></span>
+        <span class="street-bet" id="you-bet"></span>
+      </div>
+      <div class="cards" id="you-cards" aria-label="Your cards"></div>
+    </div>
+
+    <div class="status" id="status" aria-live="polite"></div>
+    <div class="controls" id="controls"></div>
+    <div class="error" id="error" role="alert"></div>
+  </section>
+
+  <aside class="log" aria-label="Hand log">
+    <h2 id="log-title">This hand</h2>
+    <ol id="log"></ol>
+    <p class="help">Keys: F fold, C check or call, R bet or raise the amount shown, N deal the next hand.</p>
+  </aside>
+</main>
+
+<script>
+const SUITS = { s: "♠", h: "♥", d: "♦", c: "♣" };
+const SUIT_NAMES = { s: "spades", h: "hearts", d: "diamonds", c: "clubs" };
+const RANK_NAMES = { T: "10", J: "jack", Q: "queen", K: "king", A: "ace" };
+let state = null;
+let controlsKey = "";
+let shownCards = {};
+let busy = false;
+
+const $ = (id) => document.getElementById(id);
+
+function cardHtml(code, animate) {
+  const rank = code[0], suit = code[1];
+  const label = `${RANK_NAMES[rank] || rank} of ${SUIT_NAMES[suit]}`;
+  return `<div class="card ${suit}${animate ? " deal" : ""}" role="img" aria-label="${label}">
+    <span class="rank">${rank === "T" ? "10" : rank}</span><span class="suit">${SUITS[suit]}</span></div>`;
+}
+
+function renderCards(id, cards, { backs = 0, slots = 0 } = {}) {
+  const key = JSON.stringify([cards, backs, slots]);
+  if (shownCards[id] === key) return;
+  const before = shownCards[id] ? JSON.parse(shownCards[id])[0] : [];
+  shownCards[id] = key;
+  let html = cards.map((c, i) => cardHtml(c, !before.includes(c))).join("");
+  html += '<div class="card back" aria-hidden="true"></div>'.repeat(backs);
+  html += '<div class="card slot" aria-hidden="true"></div>'.repeat(slots);
+  $(id).innerHTML = html;
+}
+
+function chips(label, n) { return `<small>${label}</small>${n.toLocaleString()}`; }
+
+function render() {
+  const s = state;
+  if (!s) return;
+  const inHand = s.status !== "idle";
+  $("title").textContent = `You vs ${s.opponent}`;
+  $("bot-name").textContent = s.opponent;
+  document.title = s.status === "your_turn" ? "Your move | Play " + s.opponent : "Play " + s.opponent;
+
+  const sess = s.session;
+  if (sess.hands) {
+    const cls = sess.net > 0 ? "up" : sess.net < 0 ? "down" : "";
+    const sign = sess.net > 0 ? "+" : "";
+    $("score").innerHTML = `<strong class="${cls}">${sign}${sess.net.toLocaleString()}</strong> chips over ${sess.hands} hand${sess.hands === 1 ? "" : "s"} (${sign}${sess.bb_per_hand} bb per hand), blinds ${sess.blinds}`;
+  } else {
+    $("score").textContent = `Blinds ${sess.blinds}, ${sess.starting_stack.toLocaleString()} chips each, reset every hand`;
+  }
+
+  $("bot-stack").innerHTML = inHand ? chips("Stack", s.bot.stack) : "";
+  $("you-stack").innerHTML = inHand ? chips("Stack", s.you.stack) : "";
+  $("bot-bet").textContent = inHand && s.bot.bet ? `Bet ${s.bot.bet}` : "";
+  $("you-bet").textContent = inHand && s.you.bet ? `Bet ${s.you.bet}` : "";
+  const btn = '<span class="button-chip" title="Dealer button: acts first preflop, last after the flop">D</span>';
+  $("bot-button").innerHTML = inHand && s.button === "bot" ? btn : "";
+  $("you-button").innerHTML = inHand && s.button === "you" ? btn : "";
+
+  const botHole = s.result && s.result.bot_hole;
+  renderCards("bot-cards", botHole || [], { backs: botHole ? 0 : (inHand ? 5 : 0) });
+  renderCards("board", s.board, { slots: inHand ? 5 - s.board.length : 5 });
+  renderCards("you-cards", s.you.hole, {});
+  $("pot").textContent = s.pot.toLocaleString();
+  $("pot-label").textContent = s.status === "hand_over" ? (s.pot ? "chips changed hands" : "split evenly") : "in the pot";
+
+  const status = $("status");
+  status.className = "status";
+  if (s.status === "idle") status.textContent = "Press Deal to start. Stacks reset every hand and the button alternates.";
+  else if (s.status === "dealing") status.textContent = "Dealing…";
+  else if (s.status === "bot_thinking") status.textContent = `${s.opponent} is thinking…`;
+  else if (s.status === "your_turn") {
+    const t = s.to_act;
+    status.textContent = t.call_amount ? `${s.street}: ${t.call_amount} to call.` : `${s.street}: check or bet.`;
+  } else if (s.status === "hand_over" && s.result) {
+    status.className = "status " + (s.result.net > 0 ? "result-win" : s.result.net < 0 ? "result-lose" : "");
+    const strat = s.result.strategy ? `<span class="strategy">${s.opponent} played this hand as ${s.result.strategy}.</span>` : "";
+    status.innerHTML = `${s.result.headline}.${strat}`;
+  } else status.textContent = "";
+  if (s.error) $("error").textContent = s.error;
+
+  renderControls();
+  renderLog();
+}
+
+function renderControls() {
+  const s = state;
+  const t = s.to_act;
+  const key = s.status + JSON.stringify(t);
+  if (key === controlsKey) return;
+  controlsKey = key;
+  const el = $("controls");
+  if (s.status === "idle" || s.status === "hand_over") {
+    el.innerHTML = `<button class="btn primary" id="deal">${s.status === "idle" ? "Deal" : "Deal next hand"}<kbd>N</kbd></button>`;
+    $("deal").onclick = deal;
+    $("deal").focus();
+    return;
+  }
+  if (s.status !== "your_turn") {
+    el.innerHTML = `<button class="btn" disabled>Fold</button><button class="btn" disabled>Waiting for ${s.opponent}</button>`;
+    return;
+  }
+  const callLabel = t.call_amount ? `Call ${t.call_amount}` : "Check";
+  let html = "";
+  if (t.call_amount) html += `<button class="btn" id="fold">Fold<kbd>F</kbd></button>`;
+  html += `<button class="btn" id="call">${callLabel}<kbd>C</kbd></button>`;
+  if (t.can_raise) {
+    const verb = t.raise_kind === "raise" ? "Raise to" : "Bet";
+    const lo = t.min_raise_to, hi = t.max_raise_to;
+    const half = Math.round(t.current_bet + (t.pot + t.call_amount) / 2);
+    const sizes = [["Min", lo]];
+    if (half > lo && half < hi) sizes.push(["Half pot", half]);
+    sizes.push([hi === t.all_in_to ? "All-in" : "Pot", hi]);
+    html += `<div class="raise">
+      <button class="btn primary" id="raise">${verb} <span id="raise-amt">${lo}</span><kbd>R</kbd></button>
+      <input type="range" id="raise-range" min="${lo}" max="${hi}" step="1" value="${lo}" aria-label="Amount" ${lo === hi ? "disabled" : ""}>
+      <input type="number" id="raise-input" min="${lo}" max="${hi}" step="1" value="${lo}" aria-label="Amount in chips" ${lo === hi ? "disabled" : ""}>
+      ${sizes.map(([label, v]) => `<button class="size" data-v="${v}">${label}</button>`).join("")}
+    </div>`;
+  }
+  el.innerHTML = html;
+  if (t.call_amount) $("fold").onclick = () => act("fold");
+  $("call").onclick = () => act(t.call_amount ? "call" : "check");
+  if (t.can_raise) {
+    const set = (v) => {
+      v = Math.max(t.min_raise_to, Math.min(t.max_raise_to, Math.round(Number(v) || t.min_raise_to)));
+      $("raise-range").value = v; $("raise-input").value = v; $("raise-amt").textContent = v;
+    };
+    $("raise-range").oninput = (e) => set(e.target.value);
+    $("raise-input").onchange = (e) => set(e.target.value);
+    el.querySelectorAll(".size").forEach((b) => b.onclick = () => set(b.dataset.v));
+    $("raise").onclick = () => act(t.raise_kind, Number($("raise-input").value));
+  }
+  $("call").focus();
+}
+
+function renderLog() {
+  const s = state;
+  $("log-title").textContent = s.hand_number ? `Hand ${s.hand_number}` : "This hand";
+  if (!s.log.length) {
+    $("log").innerHTML = `<li class="empty">${s.status === "idle" ? "Actions will appear here." : "Blinds are in."}</li>`;
+    return;
+  }
+  let street = null, html = "";
+  for (const e of s.log) {
+    if (e.street !== street) { street = e.street; html += `<li class="street">${street}</li>`; }
+    html += `<li class="${e.seat === 1 ? "bot" : ""}">${e.text}</li>`;
+  }
+  if (s.result && s.result.showdown) html += `<li class="street">Showdown</li><li>${s.result.headline}</li>`;
+  $("log").innerHTML = html;
+}
+
+async function post(path, body) {
+  if (busy) return;
+  busy = true;
+  try {
+    const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+    const data = await r.json();
+    if (!r.ok) { $("error").textContent = data.error; return; }
+    $("error").textContent = "";
+    state = data; render();
+  } catch (err) {
+    $("error").textContent = "Lost contact with the game server. Check that play_vs_superbot.py is still running.";
+  } finally { busy = false; }
+}
+const deal = () => { shownCards = {}; post("/api/new_hand"); };
+const act = (kind, amount) => post("/api/action", { kind, amount: amount || 0 });
+
+async function poll() {
+  try {
+    const r = await fetch("/api/state");
+    state = await r.json();
+    if (!busy) render();
+    if ($("error").textContent.startsWith("Lost contact")) $("error").textContent = "";
+  } catch (err) {
+    $("error").textContent = "Lost contact with the game server. Check that play_vs_superbot.py is still running.";
+  }
+  setTimeout(poll, state && state.status === "your_turn" ? 800 : 300);
+}
+
+document.addEventListener("keydown", (e) => {
+  if (!state || e.target.tagName === "INPUT" || e.metaKey || e.ctrlKey || e.altKey) return;
+  const k = e.key.toLowerCase();
+  const t = state.to_act;
+  if (k === "n" && (state.status === "idle" || state.status === "hand_over")) deal();
+  else if (state.status === "your_turn" && t) {
+    if (k === "f" && t.call_amount) act("fold");
+    else if (k === "c") act(t.call_amount ? "call" : "check");
+    else if (k === "r" && t.can_raise) $("raise").click();
+  }
+});
+
+poll();
+</script>
+</body>
+</html>

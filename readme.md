@@ -294,6 +294,65 @@ Evaluate it on seeds the search did not use, here 100 and up against a search
 over 1-10. Otherwise it is graded on the deals it was tuned on. Note that the
 search only sees the `--opponents` field, so the bot is tuned for that field.
 
+### Keeping playing separate from the search
+
+`super_bot.py` and `play_vs_superbot.py` read only the saved
+`best_strategy_by_hand.json`. They never import `hand_strategy_search.py`, so
+loading or playing SuperBot cannot start, or even load, the simulation. The
+card-text and hand-key helpers both sides need live in `hand_keys.py`, a small
+module with no simulation code. `hand_strategy_search.py` re-exports them for
+older callers. A test (`test_playing_never_loads_the_strategy_search`) fails if
+the play path ever imports the search module.
+
+## Play against SuperBot
+
+`play_vs_superbot.py` is a local web app for playing heads-up against SuperBot
+in your browser. It needs nothing beyond the standard library.
+
+```bash
+python3 play_vs_superbot.py                          # SuperBot, table from $SUPER_BOT_TABLE or ./hand_strategy_results
+python3 play_vs_superbot.py --table results          # point at a results folder or the JSON file
+python3 play_vs_superbot.py --opponent ShortDeckPLO  # any built-in bot; no table needed
+```
+
+It opens `http://127.0.0.1:8765`. The page shows your five cards, the board,
+the pot, both stacks and street bets, and the dealer button. Controls are Fold,
+Check or Call, and Bet or Raise with a slider, a chip box, and Min, Half pot
+and Pot (or All-in) sizes. Keyboard: F fold, C check or call, R bet or raise,
+N next hand. The side log lists every action by street.
+
+At a showdown, SuperBot's cards are revealed. After each hand the page names
+the strategy SuperBot played that hand with. The header keeps a running score
+in chips and big blinds per hand. Stacks reset every hand and the button
+alternates, as in `run_match`.
+
+Options: `--stack`, `--small-blind`, `--big-blind`, `--seed` (replay the same
+shuffles), `--bot-delay` (seconds the bot pauses so you can follow along,
+default 0.7), `--host`, `--port`, `--no-browser`. Without a strategy table,
+`--opponent SuperBot` stops with a message explaining how to make one or play
+another bot.
+
+**How it works, for agents changing it.** Each hand runs in the real engine
+(`play_hand`) on a background thread. Your seat is a `_Seat` whose `act()` is
+`Table.human_act`. That method publishes the observation and blocks on a queue
+until the browser posts an action. The browser polls `GET /api/state`, which
+returns JSON with status, cards as text such as `"As"`, stacks, `to_act` with
+the legal amounts, the log and the result. It sends `POST /api/action
+{"kind": "fold|check|call|bet|raise", "amount": N}` and `POST /api/new_hand`.
+`validate_action()` checks every action against the engine's rules before it
+reaches the engine, so an illegal click returns HTTP 400 with a reason instead
+of crashing the hand. The page is `play_vs_superbot.html` (plain HTML, CSS and
+JS), served from the same folder.
+
+**Engine quirk this works around.** In `short_deck_plo._Hand._betting_round`,
+after a bet or raise the to-act list is rebuilt with `_clockwise(seat)`. In
+heads-up that list includes the bettor, so after being called the bettor is
+asked to act once more. Its only legal move then is a check, so no chips
+move. The UI answers that extra turn with a check without showing or logging
+it. The engine itself is unchanged, so tournaments and the strategy search
+still make that extra `act()` call. It does not change chip results, but it
+does consume one extra random draw for bots like `RandomBot`.
+
 ### Engine helpers added for this
 
 `short_deck_plo.play_hand(first, second, button=, deck=, ...)` plays one hand
@@ -310,6 +369,9 @@ python3 -m unittest discover -s tests -v
 
 `tests/test_hand_strategy_search.py` and `tests/test_super_bot.py` cover dealing,
 suit symmetry, the common-deal guarantee, merge and lookup, and SuperBot's
-table use, fallback and strategy switching. They use only the cheap
+table use, fallback and strategy switching. `tests/test_play_vs_superbot.py`
+covers action checking, full hands played through the web app's `Table`,
+scoring, button rotation, the hidden extra check, and the guarantee that
+playing never imports the search. They use only the cheap
 `CallingStation`, `Random` and `Maniac` bots on a few hands, finish in seconds,
 and never start the real search.
