@@ -60,6 +60,56 @@ class ShortHistoryShrink:
         return result
 
 
+class GatedShrink:
+    """Wrap any base forecaster and blend in the pooled starter for short-history machines.
+
+    Differences from ShortHistoryShrink:
+      * The base model is supplied by the caller (for example a shift forecaster).
+      * machine_types (optional) restricts the blend to those machine types; None means all.
+      * The observed-tick count only includes ticks < query.cutoff for the same episode and machine.
+
+    No condition labels are used; the observed tick count and machine_type are query/history signals.
+    """
+
+    def __init__(self, base, threshold=128, weight=0.3, machine_types=None):
+        if threshold < 1 or not 0 <= weight <= 1:
+            raise ValidationError("threshold must be at least 1 and weight in [0, 1].")
+        self.base = base
+        self.threshold = int(threshold)
+        self.weight = float(weight)
+        self.machine_types = None if machine_types is None else frozenset(machine_types)
+        self.pooled = FrequencyForecaster("pooled")
+
+    def fit(self, queries, history, labels=None):
+        queries, history = tuple(queries), tuple(history)
+        fitted = self.base.fit(queries, history, labels)
+        if fitted is not None:
+            self.base = fitted
+        self.pooled.fit(queries, history, labels)
+        return self
+
+    def predict(self, queries, history):
+        queries, history = tuple(queries), tuple(history)
+        main = self.base.predict(queries, history)
+        pooled = self.pooled.predict(queries, history)
+        ticks = defaultdict(list)
+        for row in history:
+            ticks[(row.episode_id, row.machine_id)].append(row.tick)
+        result = {}
+        for query in queries:
+            first, second = main[query.query_id], pooled[query.query_id]
+            gated = self.machine_types is None or query.machine_type in self.machine_types
+            observed = sum(1 for tick in ticks.get((query.episode_id, query.machine_id), ())
+                           if tick < query.cutoff)
+            if gated and observed < self.threshold:
+                weight = self.weight
+                result[query.query_id] = tuple((1 - weight) * a + weight * b
+                                               for a, b in zip(first, second))
+            else:
+                result[query.query_id] = tuple(first)
+        return result
+
+
 class EpisodeShiftForecaster(AllTicksForecaster):
     """adaptive_lags plus a shrunken, recency-weighted episode-level residual shift.
 
@@ -151,10 +201,40 @@ class EpisodeShiftForecaster(AllTicksForecaster):
         return result
 
 
+JACKPOT_BALANCED = ("jackpot", "balanced")
+
+
+def _shift(cohort, gain, shrink):
+    return EpisodeShiftForecaster(cohort, half_life=32.0, shrink=float(shrink), gain=float(gain))
+
+
 def candidates():
-    return [
-        ("shrink_short_0.3", lambda: ShortHistoryShrink(threshold=128, weight=0.3)),
-        ("shift_self_hl32", lambda: EpisodeShiftForecaster("self", half_life=32.0, shrink=40.0)),
-        ("shift_type_hl32", lambda: EpisodeShiftForecaster("type", half_life=32.0, shrink=40.0)),
-        ("shift_type_signal_hl32", lambda: EpisodeShiftForecaster("type_signal", half_life=32.0, shrink=40.0)),
-    ]
+    result = []
+
+    # 1. Episode shift grid: cohort x gain x shrink, half_life fixed at 32.
+    for cohort in ("self", "type"):
+        for gain in (0.3, 0.5, 0.7):
+            for shrink in (40, 80):
+                name = f"shift_{cohort}_g{gain}_s{shrink}"
+                result.append((name, lambda c=cohort, g=gain, s=shrink: _shift(c, g, s)))
+
+    # 2. Short-history shrink toward the pooled starter, all machine types.
+    for weight in (0.3, 0.5):
+        result.append((f"shrink_short_{weight}",
+                       lambda w=weight: ShortHistoryShrink(threshold=128, weight=w)))
+
+    # 3. Same shrink, applied only to jackpot and balanced machines.
+    for weight in (0.3, 0.5):
+        result.append((f"shrink_jb_{weight}",
+                       lambda w=weight: GatedShrink(_adaptive_lags(), threshold=128, weight=w,
+                                                    machine_types=JACKPOT_BALANCED)))
+
+    # 4. Combined: shift forecast first, then the short-history pooled blend on top.
+    # Placeholders at the mid-grid shift setting; replace with the tuning-best shift and shrink
+    # settings once the table from this run is available.
+    result.append(("combo_shift_type_g0.5_s40_shrink_0.3",
+                   lambda: GatedShrink(_shift("type", 0.5, 40), threshold=128, weight=0.3)))
+    result.append(("combo_shift_type_g0.5_s40_shrink_jb_0.3",
+                   lambda: GatedShrink(_shift("type", 0.5, 40), threshold=128, weight=0.3,
+                                       machine_types=JACKPOT_BALANCED)))
+    return result
