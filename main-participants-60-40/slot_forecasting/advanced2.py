@@ -229,12 +229,17 @@ def candidates():
                        lambda w=weight: GatedShrink(_adaptive_lags(), threshold=128, weight=w,
                                                     machine_types=JACKPOT_BALANCED)))
 
-    # 4. Combined: shift forecast first, then the short-history pooled blend on top.
-    # Placeholders at the mid-grid shift setting; replace with the tuning-best shift and shrink
-    # settings once the table from this run is available.
+    # 4a. Mid-grid combos from the candidates-03 run (kept so that run stays reproducible).
     result.append(("combo_shift_type_g0.5_s40_shrink_0.3",
                    lambda: GatedShrink(_shift("type", 0.5, 40), threshold=128, weight=0.3)))
     result.append(("combo_shift_type_g0.5_s40_shrink_jb_0.3",
                    lambda: GatedShrink(_shift("type", 0.5, 40), threshold=128, weight=0.3,
+                                       machine_types=JACKPOT_BALANCED)))
+
+    # 4b. Combo of the tuning-best shift (shift_self_g0.7_s80, mean ratio 0.9165) and the
+    # tuning-best shrink (shrink_jb_0.5, mean ratio 0.9171) from candidates-03.
+    # Shift forecast first, then the jackpot/balanced pooled blend on top.
+    result.append(("combo_shift_self_g0.7_s80_shrink_jb_0.5",
+                   lambda: GatedShrink(_shift("self", 0.7, 80), threshold=128, weight=0.5,
                                        machine_types=JACKPOT_BALANCED)))
     return result
