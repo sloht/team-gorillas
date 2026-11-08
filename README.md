@@ -32,6 +32,14 @@ normalized squared-error score. See the kit's [scoring guide](./main-participant
   checks, and its packaged code reproduced its test forecast exactly. These
   experimental files are currently local and untracked; they have not been
   pushed or submitted to the contest.
+- A follow-up candidate, `combo_shift_self_g0.7_s80_shrink_jb_0.5`, adds an
+  episode-level residual shift and a jackpot/balanced short-history shrink on
+  top of `adaptive_lags`. Its settings were selected on the tuning half only.
+  It scored 31.346 (tuning), 31.035 (audit), and 31.203 (full validation), versus
+  31.245, 30.919, and 31.094 for `adaptive_lags`. That is about +0.1 points on
+  each, still a small gain and not a guarantee for the hidden test. The code is
+  in `advanced-entry/` (`predict.py` and `slot_forecasting/advanced2.py`); its
+  forecast and archive have not been built, checked, or submitted yet.
 - No contest form submission has been made.
 
 ## Reproduce and evaluate
@@ -47,12 +55,21 @@ python3 build_entry.py --starter outputs --out entry.zip
 ```
 
 For the advanced experiment, the untracked source currently lives in
-`main-participants-60-40/slot_forecasting/advanced.py`; the selected test
+`main-participants-60-40/slot_forecasting/advanced.py` (base model) and
+`main-participants-60-40/slot_forecasting/advanced2.py` (round-two candidates,
+including the combo); the selected test
 forecast and experiment report are in `advanced-experiments-01/`, and the
 reproduction source/archive are in `advanced-entry/` and
 `adaptive-lags-entry.zip`. Its predictor is pure Python and uses no third-party
 packages. See the kit's [reproduction requirements](./main-participants-60-40/README.md#package-a-custom-model)
 before packaging or submitting.
+
+To package the combo entry (delete any `__pycache__` folders under
+`advanced-entry/` first, because `build_entry.py --source` zips every file):
+
+```sh
+python3 build_entry.py --source advanced-entry --out combo-entry.zip
+```
 
 ## Suggested continuation
 
