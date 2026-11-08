@@ -3,118 +3,202 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Play SuperBot</title>
+<title>Thragg Poker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --baize: #16382F;
-    --rail: #0E241E;
-    --rail-line: #24493F;
-    --stock: #FBF7EE;
-    --brass: #D9A441;
-    --brass-ink: #2A1E05;
-    --ink: #E8EFEA;
-    --muted: #9DB5AA;
-    --spade: #1C1C1C;
-    --heart: #C8312F;
-    --diamond: #2459C4;
-    --club: #22803F;
-    --win: #7FD49A;
-    --lose: #F08A80;
+    --void: #09070A;
+    --void-2: #120D10;
+    --felt: #3A0A0F;
+    --felt-deep: #1A0508;
+    --blood: #C8141F;
+    --blood-bright: #F0313B;
+    --ivory: #F3EEE4;
+    --silver: #B8B2AA;
+    --steel: #3A3336;
+    --line: rgba(243, 238, 228, .14);
+    --ink: #F3EEE4;
+    --muted: #B3A9A4;
+    --spade: #141113;
+    --heart: #C8141F;
+    --diamond: #2A5BC2;
+    --club: #1F7A3E;
+    --win: #8FE0A8;
+    --lose: #FF7A7F;
+    --regal: "Cinzel", "Trajan Pro", Georgia, serif;
     --display: "Barlow Condensed", "Arial Narrow", sans-serif;
     --body: "Barlow", system-ui, sans-serif;
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; background: var(--rail); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.45; }
+  html, body { margin: 0; color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.45; }
+  body {
+    min-height: 100vh;
+    background:
+      radial-gradient(1200px 600px at 50% -10%, rgba(200, 20, 31, .28), transparent 60%),
+      radial-gradient(900px 500px at 50% 110%, rgba(200, 20, 31, .12), transparent 60%),
+      var(--void);
+  }
   button, input { font: inherit; color: inherit; }
-  :focus-visible { outline: 3px solid var(--brass); outline-offset: 2px; }
+  :focus-visible { outline: 3px solid var(--blood-bright); outline-offset: 2px; }
 
-  .page { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; max-width: 1180px; margin: 0 auto; padding: 20px 16px 32px; }
-  .table { background: var(--baize); border: 1px solid var(--rail-line); border-radius: 28px; padding: 24px 28px; display: grid; gap: 22px; }
-
-  .topline { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; flex-wrap: wrap; }
-  .topline h1 { margin: 0; font-family: var(--display); font-weight: 700; font-size: 1.6rem; letter-spacing: .01em; }
-  .score { font-family: var(--display); font-size: 1.15rem; color: var(--muted); }
-  .score strong { font-weight: 700; color: var(--ink); }
+  /* ---- banner ---- */
+  .banner { max-width: 1240px; margin: 0 auto; padding: 22px 16px 6px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .sigil { width: 46px; height: 46px; flex: none; filter: drop-shadow(0 0 10px rgba(240, 49, 59, .55)); }
+  .banner h1 { margin: 0; font-family: var(--regal); font-weight: 900; font-size: clamp(1.7rem, 4vw, 2.6rem); letter-spacing: .14em; line-height: 1; }
+  .banner h1 span { color: var(--blood-bright); }
+  .banner .sub { font-family: var(--regal); font-size: .82rem; letter-spacing: .32em; text-transform: uppercase; color: var(--silver); margin-top: 6px; }
+  .banner .score { margin-left: auto; font-family: var(--display); font-size: 1.1rem; color: var(--muted); text-align: right; }
+  .score strong { font-weight: 700; color: var(--ink); font-size: 1.3rem; }
   .score .up { color: var(--win); } .score .down { color: var(--lose); }
 
+  .page { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; max-width: 1240px; margin: 0 auto; padding: 12px 16px 36px; }
+
+  /* ---- table ---- */
+  .table {
+    position: relative; border-radius: 34px; padding: 26px 30px; display: grid; gap: 20px;
+    background: radial-gradient(ellipse at 50% 45%, var(--felt) 0%, var(--felt-deep) 72%);
+    border: 2px solid var(--steel);
+    box-shadow: inset 0 0 0 6px var(--void-2), inset 0 0 0 7px var(--line), 0 30px 80px rgba(0, 0, 0, .6), 0 0 60px rgba(200, 20, 31, .15);
+    overflow: hidden;
+  }
+  .table::before { /* faint imperial sigil in the felt */
+    content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .07;
+    background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='44' fill='none' stroke='%23F3EEE4' stroke-width='3'/><path d='M22 30 L50 74 L78 30 L64 30 L50 52 L36 30 Z' fill='%23F3EEE4'/></svg>") center 52% / 340px no-repeat;
+  }
+  .table > * { position: relative; }
+
   .seat { display: grid; gap: 10px; }
-  .seat-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
-  .seat-name { font-weight: 600; font-size: 1.05rem; }
+  .seat-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .seat-name { font-family: var(--regal); font-weight: 700; letter-spacing: .12em; font-size: 1.05rem; text-transform: uppercase; }
   .chips { font-family: var(--display); font-size: 1.25rem; font-weight: 600; }
-  .chips small { font-family: var(--body); font-size: .85rem; font-weight: 400; color: var(--muted); margin-right: 4px; }
-  .button-chip { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--stock); color: var(--spade); font-family: var(--display); font-weight: 700; font-size: .9rem; }
-  .street-bet { font-family: var(--display); font-size: 1.1rem; color: var(--brass); }
+  .chips small { font-family: var(--body); font-size: .8rem; font-weight: 500; color: var(--muted); margin-right: 5px; text-transform: uppercase; letter-spacing: .08em; }
+  .button-chip { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--ivory); color: var(--blood); font-family: var(--regal); font-weight: 900; font-size: .85rem; box-shadow: 0 0 0 2px var(--blood), 0 2px 6px rgba(0,0,0,.5); }
+  .street-bet { font-family: var(--display); font-size: 1.15rem; font-weight: 600; color: var(--blood-bright); background: rgba(0,0,0,.35); padding: 2px 10px; border-radius: 999px; border: 1px solid rgba(240,49,59,.4); }
+  .street-bet:empty { display: none; }
+
+  /* Thragg's seat */
+  .regent { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 18px; align-items: center; }
+  .portrait {
+    width: 128px; height: 128px; border-radius: 50%; overflow: hidden; flex: none; position: relative;
+    border: 3px solid var(--ivory); box-shadow: 0 0 0 4px var(--blood), 0 0 34px rgba(240, 49, 59, .55);
+    background: radial-gradient(circle at 50% 35%, #4A0E14, var(--void));
+  }
+  .portrait img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; display: block; }
+  .portrait.thinking { animation: pulse 1.1s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 4px var(--blood), 0 0 24px rgba(240,49,59,.45); } 50% { box-shadow: 0 0 0 4px var(--blood-bright), 0 0 48px rgba(240,49,59,.9); } }
+  .regent-info { display: grid; gap: 8px; min-width: 0; }
+  .decree {
+    font-family: var(--regal); font-weight: 600; font-size: 1.02rem; letter-spacing: .03em; color: var(--ivory);
+    background: rgba(9, 7, 10, .72); border-left: 3px solid var(--blood-bright); padding: 8px 14px; border-radius: 4px 12px 12px 4px; min-height: 2.4em;
+  }
+  .decree::before { content: "\201C"; color: var(--blood-bright); margin-right: 2px; }
+  .decree::after { content: "\201D"; color: var(--blood-bright); margin-left: 2px; }
+  .decree:empty::before, .decree:empty::after { content: none; }
 
   .cards { display: flex; gap: 8px; flex-wrap: wrap; min-height: 100px; }
-  .card { width: 70px; height: 100px; border-radius: 8px; background: var(--stock); color: var(--spade); display: grid; grid-template-rows: auto 1fr; padding: 4px 8px; box-shadow: 0 2px 0 rgba(0,0,0,.35); position: relative; }
+  .card { width: 70px; height: 100px; border-radius: 9px; background: var(--ivory); color: var(--spade); display: grid; grid-template-rows: auto 1fr; padding: 4px 8px; box-shadow: 0 3px 0 rgba(0,0,0,.45), 0 8px 18px rgba(0,0,0,.35); position: relative; }
   .card .rank { font-family: var(--display); font-weight: 700; font-size: 2.6rem; line-height: 1; }
   .card .suit { font-size: 1.9rem; line-height: 1; align-self: end; justify-self: end; }
   .card.s { color: var(--spade); } .card.h { color: var(--heart); } .card.d { color: var(--diamond); } .card.c { color: var(--club); }
-  .card.back { background: repeating-linear-gradient(45deg, #7A2E2A 0 6px, #8E3A35 6px 12px); border: 4px solid var(--stock); }
-  .card.slot { background: transparent; border: 2px dashed var(--rail-line); box-shadow: none; }
+  .card.back {
+    border: 3px solid var(--ivory);
+    background:
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='none' stroke='%23C8141F' stroke-width='5'/><path d='M24 32 L50 72 L76 32 L63 32 L50 52 L37 32 Z' fill='%23C8141F'/></svg>") center / 70% no-repeat,
+      repeating-linear-gradient(135deg, #0E0B0D 0 5px, #17121A 5px 10px);
+  }
+  .card.slot { background: rgba(0,0,0,.18); border: 2px dashed rgba(243,238,228,.18); box-shadow: none; }
   .you .card { width: 84px; height: 120px; }
   .you .card .rank { font-size: 3.2rem; }
   .you .card .suit { font-size: 2.3rem; }
-  .card.deal { animation: deal .22s ease-out both; }
-  @keyframes deal { from { transform: translateY(-10px); opacity: 0; } to { transform: none; opacity: 1; } }
+  .card.deal { animation: deal .24s ease-out both; }
+  @keyframes deal { from { transform: translateY(-12px) rotate(-3deg); opacity: 0; } to { transform: none; opacity: 1; } }
+  .revealed .card { box-shadow: 0 0 0 2px var(--blood-bright), 0 8px 18px rgba(0,0,0,.35); }
 
-  .middle { display: flex; align-items: center; gap: 28px; flex-wrap: wrap; padding: 18px 0; border-top: 1px solid var(--rail-line); border-bottom: 1px solid var(--rail-line); }
-  .pot { font-family: var(--display); }
-  .pot .amount { font-size: 2.4rem; font-weight: 700; color: var(--brass); line-height: 1; }
-  .pot .label { color: var(--muted); font-family: var(--body); font-size: .9rem; }
+  .middle { display: flex; align-items: center; justify-content: space-between; gap: 24px; flex-wrap: wrap; padding: 18px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .pot { text-align: center; font-family: var(--display); min-width: 120px; }
+  .pot .amount { font-size: 2.8rem; font-weight: 700; color: var(--ivory); line-height: 1; text-shadow: 0 0 22px rgba(240,49,59,.7); }
+  .pot .label { color: var(--muted); font-family: var(--regal); font-size: .72rem; letter-spacing: .28em; text-transform: uppercase; margin-top: 4px; }
 
-  .status { min-height: 1.5em; font-size: 1.05rem; }
+  .status { min-height: 1.5em; font-size: 1.08rem; }
   .status.result-win { color: var(--win); } .status.result-lose { color: var(--lose); }
-  .status .strategy { color: var(--muted); display: block; font-size: .95rem; }
+  .status .detail { color: var(--muted); display: block; font-size: .95rem; }
   .error { color: var(--lose); min-height: 1.2em; font-size: .95rem; }
 
   .controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-  .btn { border: 0; border-radius: 10px; padding: 10px 18px; font-weight: 600; cursor: pointer; background: var(--rail); color: var(--ink); border: 1px solid var(--rail-line); min-height: 44px; }
-  .btn:hover:not(:disabled) { background: #163129; }
-  .btn:disabled { opacity: .4; cursor: not-allowed; }
-  .btn.primary { background: var(--brass); color: var(--brass-ink); border-color: var(--brass); }
-  .btn.primary:hover:not(:disabled) { background: #E6B451; }
-  .btn kbd { font-family: var(--body); font-size: .75rem; opacity: .65; margin-left: 6px; }
-  .size-note { display: block; font-size: .78rem; font-weight: 500; opacity: .75; }
+  .btn { border-radius: 10px; padding: 10px 18px; font-weight: 600; cursor: pointer; background: rgba(9,7,10,.75); color: var(--ink); border: 1px solid rgba(243,238,228,.28); min-height: 46px; letter-spacing: .02em; }
+  .btn:hover:not(:disabled) { background: #221A1D; border-color: var(--ivory); }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn.primary { background: linear-gradient(180deg, var(--blood-bright), var(--blood)); color: #fff; border-color: #FF5A62; box-shadow: 0 4px 14px rgba(200,20,31,.45); }
+  .btn.primary:hover:not(:disabled) { background: linear-gradient(180deg, #FF4952, #DA1A25); }
+  .btn.deal-btn { font-family: var(--regal); letter-spacing: .14em; text-transform: uppercase; padding: 12px 24px; }
+  .btn kbd { font-family: var(--body); font-size: .72rem; opacity: .7; margin-left: 7px; }
+  .size-note { display: block; font-size: .76rem; font-weight: 500; opacity: .8; }
   .cap-note { color: var(--muted); font-size: .9rem; }
 
-  .log { background: var(--baize); border: 1px solid var(--rail-line); border-radius: 20px; padding: 18px 20px; align-self: start; max-height: calc(100vh - 40px); overflow: auto; position: sticky; top: 20px; }
-  .log h2 { margin: 0 0 10px; font-family: var(--display); font-size: 1.25rem; font-weight: 600; }
-  .log ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
-  .log li { font-size: .95rem; }
-  .log li.bot { color: var(--muted); }
-  .log li.street { margin-top: 8px; font-family: var(--display); font-weight: 600; color: var(--brass); }
-  .log .empty { color: var(--muted); font-size: .95rem; }
-  .help { color: var(--muted); font-size: .85rem; margin-top: 14px; }
+  /* ---- side panel ---- */
+  .side { display: grid; gap: 16px; align-self: start; position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow: auto; }
+  .panel { background: linear-gradient(180deg, #160F12, #0E0A0C); border: 1px solid var(--steel); border-radius: 18px; padding: 16px 18px; }
+  .panel h2 { margin: 0 0 10px; font-family: var(--regal); font-weight: 700; font-size: .95rem; letter-spacing: .2em; text-transform: uppercase; color: var(--ivory); }
+  .panel h2 small { display: block; font-family: var(--body); letter-spacing: 0; text-transform: none; color: var(--muted); font-weight: 400; font-size: .82rem; margin-top: 2px; }
 
-  @media (max-width: 860px) {
+  .meter { display: grid; gap: 4px; margin-bottom: 12px; }
+  .meter-top { display: flex; justify-content: space-between; gap: 8px; font-size: .92rem; }
+  .meter-top b { font-family: var(--display); font-size: 1.1rem; }
+  .bar { height: 8px; border-radius: 99px; background: #2A2125; overflow: hidden; }
+  .bar i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, #7A0F14, var(--blood-bright)); transition: width .4s ease; }
+  .meter .verdict { font-size: .82rem; color: var(--muted); }
+  .memory { font-size: .82rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 10px; }
+
+  .log ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+  .log li { font-size: .94rem; }
+  .log li.bot { color: #FFB3B6; }
+  .log li.street { margin-top: 8px; font-family: var(--regal); font-weight: 700; font-size: .74rem; letter-spacing: .22em; text-transform: uppercase; color: var(--blood-bright); }
+  .log .empty { color: var(--muted); font-size: .94rem; }
+  .help { color: var(--muted); font-size: .82rem; margin: 10px 0 0; }
+
+  @media (max-width: 900px) {
     .page { grid-template-columns: 1fr; }
-    .log { position: static; max-height: none; }
-    .table { padding: 18px 16px; border-radius: 20px; }
-    .card { width: 54px; height: 78px; padding: 3px 6px; }
-    .card .rank { font-size: 2rem; } .card .suit { font-size: 1.4rem; }
+    .side { position: static; max-height: none; }
+    .banner .score { margin-left: 0; text-align: left; width: 100%; }
+    .table { padding: 18px 16px; border-radius: 22px; }
+    .portrait { width: 88px; height: 88px; }
+    .card { width: 52px; height: 76px; padding: 3px 6px; }
+    .card .rank { font-size: 1.9rem; } .card .suit { font-size: 1.35rem; }
     .you .card { width: 58px; height: 84px; }
     .you .card .rank { font-size: 2.2rem; } .you .card .suit { font-size: 1.6rem; }
+    .pot .amount { font-size: 2.2rem; }
   }
-  @media (prefers-reduced-motion: reduce) { .card.deal { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .card.deal, .portrait.thinking { animation: none; } }
 </style>
 </head>
 <body>
+<header class="banner">
+  <svg class="sigil" viewBox="0 0 100 100" aria-hidden="true">
+    <circle cx="50" cy="50" r="44" fill="#09070A" stroke="#F3EEE4" stroke-width="5"/>
+    <path d="M22 30 L50 74 L78 30 L64 30 L50 52 L36 30 Z" fill="#C8141F"/>
+  </svg>
+  <div>
+    <h1 id="title"><span>THRAGG</span> POKER</h1>
+    <div class="sub" id="subtitle">Grand Regent of the Short Deck</div>
+  </div>
+  <div class="score" id="score">No hands yet</div>
+</header>
+
 <main class="page">
   <section class="table" aria-label="Poker table">
-    <div class="topline">
-      <h1 id="title">You vs SuperBot</h1>
-      <div class="score" id="score">No hands yet</div>
-    </div>
-
     <div class="seat bot">
-      <div class="seat-head">
-        <span class="seat-name" id="bot-name">SuperBot</span>
-        <span class="chips" id="bot-stack"></span>
-        <span id="bot-button"></span>
-        <span class="street-bet" id="bot-bet"></span>
+      <div class="regent">
+        <div class="portrait" id="portrait"><img src="/thragg.webp" alt="Thragg holding four aces" onerror="this.remove()"></div>
+        <div class="regent-info">
+          <div class="seat-head">
+            <span class="seat-name" id="bot-name">Thragg</span>
+            <span class="chips" id="bot-stack"></span>
+            <span id="bot-button"></span>
+            <span class="street-bet" id="bot-bet"></span>
+          </div>
+          <div class="decree" id="decree" aria-live="polite"></div>
+        </div>
       </div>
       <div class="cards" id="bot-cards" aria-label="Opponent's cards"></div>
     </div>
@@ -139,11 +223,17 @@
     <div class="error" id="error" role="alert"></div>
   </section>
 
-  <aside class="log" aria-label="Hand log">
-    <h2 id="log-title">This hand</h2>
-    <ol id="log"></ol>
-    <p class="help">Official tournament rules: 80 chips, blinds 1/2, raises are half pot or pot, at most 4 per street. Three of a kind beats a straight; a flush beats a full house.</p>
-    <p class="help">Keys: F fold, C check or call, H half-pot raise, P pot raise, N next hand.</p>
+  <aside class="side">
+    <section class="panel" id="read-panel" hidden>
+      <h2>The Regent's Assessment<small id="read-sub">What Thragg has learned about you</small></h2>
+      <div id="read"></div>
+    </section>
+    <section class="panel log" aria-label="Hand log">
+      <h2 id="log-title">This hand</h2>
+      <ol id="log"></ol>
+      <p class="help">Official tournament rules: 80 chips, blinds 1/2, raises are half pot or pot, at most 4 per street. Three of a kind beats a straight; a flush beats a full house.</p>
+      <p class="help">Keys: F fold, C check or call, H half-pot raise, P pot raise, N next hand.</p>
+    </section>
   </aside>
 </main>
 
@@ -151,12 +241,26 @@
 const SUITS = { s: "♠", h: "♥", d: "♦", c: "♣" };
 const SUIT_NAMES = { s: "spades", h: "hearts", d: "diamonds", c: "clubs" };
 const RANK_NAMES = { T: "10", J: "jack", Q: "queen", K: "king", A: "ace" };
+// What the Regent says. Picked by what he just did; varied by hand number.
+const DECREES = {
+  idle: ["Sit. Deal. Let us see what you are worth."],
+  thinking: ["…", "Calculating your end."],
+  raise: ["Your chips belong to the Empire.", "I do not bet. I conquer.", "Raise again. I dare you.", "Pressure reveals weakness."],
+  bet: ["The pot is mine. I am merely collecting it.", "Feel that? That is inevitability.", "I lead. You follow."],
+  call: ["I will see it.", "Your bluff amuses me.", "Show me what you think you have."],
+  check: ["Proceed.", "I am patient. Empires are built on patience.", "Your move, insect."],
+  fold: ["A strategic withdrawal. Nothing more.", "Take it. A small kindness from the Regent.", "Enjoy the crumbs."],
+  bot_wins: ["Kneel.", "As it was always going to be.", "Another world falls.", "You were never in this hand."],
+  you_win: ["Enjoy it. It will not last.", "Impressive. For your kind.", "I remember everything."],
+  split: ["A draw. Do not mistake it for mercy."],
+};
 let state = null;
 let controlsKey = "";
 let shownCards = {};
 let busy = false;
 
 const $ = (id) => document.getElementById(id);
+const pick = (list, n) => list[Math.abs(n) % list.length];
 
 function cardHtml(code, animate) {
   const rank = code[0], suit = code[1];
@@ -170,7 +274,7 @@ function renderCards(id, cards, { backs = 0, slots = 0 } = {}) {
   if (shownCards[id] === key) return;
   const before = shownCards[id] ? JSON.parse(shownCards[id])[0] : [];
   shownCards[id] = key;
-  let html = cards.map((c, i) => cardHtml(c, !before.includes(c))).join("");
+  let html = cards.map((c) => cardHtml(c, !before.includes(c))).join("");
   html += '<div class="card back" aria-hidden="true"></div>'.repeat(backs);
   html += '<div class="card slot" aria-hidden="true"></div>'.repeat(slots);
   $(id).innerHTML = html;
@@ -178,21 +282,41 @@ function renderCards(id, cards, { backs = 0, slots = 0 } = {}) {
 
 function chips(label, n) { return `<small>${label}</small>${n.toLocaleString()}`; }
 
+function decree(s) {
+  const n = s.hand_number + s.log.length;
+  if (s.status === "idle") return pick(DECREES.idle, 0);
+  if (s.status === "hand_over" && s.result) {
+    return pick(s.result.net < 0 ? DECREES.bot_wins : s.result.net > 0 ? DECREES.you_win : DECREES.split, n);
+  }
+  if (s.status === "bot_thinking") return pick(DECREES.thinking, n);
+  const mine = [...s.log].reverse().find((e) => e.seat === 1);
+  if (!mine) return pick(DECREES.check, n);
+  const t = mine.text.toLowerCase();
+  const kind = t.includes(" raises") ? "raise" : t.includes(" bets") ? "bet" : t.includes(" calls") ? "call"
+    : t.includes(" folds") ? "fold" : "check";
+  return pick(DECREES[kind], n);
+}
+
 function render() {
   const s = state;
   if (!s) return;
   const inHand = s.status !== "idle";
-  $("title").textContent = `You vs ${s.opponent}`;
+  const isThragg = s.opponent === "Thragg";
   $("bot-name").textContent = s.opponent;
-  document.title = s.status === "your_turn" ? "Your move | Play " + s.opponent : "Play " + s.opponent;
+  $("title").innerHTML = isThragg ? "<span>THRAGG</span> POKER" : `YOU VS <span>${s.opponent.toUpperCase()}</span>`;
+  $("subtitle").textContent = isThragg
+    ? `Grand Regent of the Short Deck${s.opponent_id ? " · champion " + s.opponent_id : ""}`
+    : "Short Deck PLO5 · official rules";
+  document.title = s.status === "your_turn" ? `Your move | ${s.opponent} Poker` : `${s.opponent} Poker`;
+  $("portrait").classList.toggle("thinking", s.status === "bot_thinking");
 
   const sess = s.session;
   if (sess.hands) {
     const cls = sess.net > 0 ? "up" : sess.net < 0 ? "down" : "";
     const sign = sess.net > 0 ? "+" : "";
-    $("score").innerHTML = `<strong class="${cls}">${sign}${sess.net.toLocaleString()}</strong> chips over ${sess.hands} hand${sess.hands === 1 ? "" : "s"} (${sign}${sess.bb_per_hand} bb per hand), blinds ${sess.blinds}`;
+    $("score").innerHTML = `<strong class="${cls}">${sign}${sess.net.toLocaleString()}</strong> chips over ${sess.hands} hand${sess.hands === 1 ? "" : "s"}<br>${sign}${sess.bb_per_hand} bb per hand · blinds ${sess.blinds}`;
   } else {
-    $("score").textContent = `Blinds ${sess.blinds}, ${sess.starting_stack.toLocaleString()} chips each, reset every hand`;
+    $("score").textContent = `Blinds ${sess.blinds} · ${sess.starting_stack.toLocaleString()} chips each, reset every hand`;
   }
 
   $("bot-stack").innerHTML = inHand ? chips("Stack", s.bot.stack) : "";
@@ -202,8 +326,11 @@ function render() {
   const btn = '<span class="button-chip" title="Dealer button: acts first preflop, last after the flop">D</span>';
   $("bot-button").innerHTML = inHand && s.button === "bot" ? btn : "";
   $("you-button").innerHTML = inHand && s.button === "you" ? btn : "";
+  $("decree").textContent = isThragg ? decree(s) : "";
+  $("decree").hidden = !isThragg;
 
   const botHole = s.result && s.result.bot_hole;
+  $("bot-cards").classList.toggle("revealed", !!botHole);
   renderCards("bot-cards", botHole || [], { backs: botHole ? 0 : (inHand ? 5 : 0) });
   renderCards("board", s.board, { slots: inHand ? 5 - s.board.length : 5 });
   renderCards("you-cards", s.you.hole, {});
@@ -213,21 +340,47 @@ function render() {
   const status = $("status");
   status.className = "status";
   if (s.status === "idle") status.textContent = "Press Deal to start. Stacks reset every hand and the button alternates.";
-  else if (s.status === "dealing") status.textContent = "Dealing…";
-  else if (s.status === "bot_thinking") status.textContent = `${s.opponent} is thinking…`;
+  else if (s.status === "bot_thinking") status.textContent = `${s.opponent} is deciding your fate…`;
   else if (s.status === "your_turn") {
     const t = s.to_act;
     status.textContent = t.call_amount ? `${s.street}: ${t.call_amount} to call.` : `${s.street}: ${t.legal.includes("RAISE_HALF") ? "check or bet" : "check"}.`;
   } else if (s.status === "hand_over" && s.result) {
     status.className = "status " + (s.result.net > 0 ? "result-win" : s.result.net < 0 ? "result-lose" : "");
-    const hands = s.result.hands ? `<span class="strategy">Your ${s.result.hands.you} against ${s.opponent}'s ${s.result.hands.bot}.</span>` : "";
-    const strat = s.result.strategy ? `<span class="strategy">${s.opponent} played this hand as ${s.result.strategy}.</span>` : "";
+    const hands = s.result.hands ? `<span class="detail">Your ${s.result.hands.you} against ${s.opponent}'s ${s.result.hands.bot}.</span>` : "";
+    const strat = s.result.strategy ? `<span class="detail">${s.opponent} played this hand as ${s.result.strategy}.</span>` : "";
     status.innerHTML = `${s.result.headline}.${hands}${strat}`;
   } else status.textContent = "";
   if (s.error) $("error").textContent = s.error;
 
   renderControls();
+  renderRead();
   renderLog();
+}
+
+function meter(label, value, count, unit, verdict) {
+  const pct = Math.round(value * 100);
+  return `<div class="meter"><div class="meter-top"><span>${label}</span><b>${pct}%</b></div>
+    <div class="bar"><i style="width:${Math.min(100, pct)}%"></i></div>
+    <div class="verdict">${verdict} <span>(${count} ${unit})</span></div></div>`;
+}
+
+function renderRead() {
+  const r = state.read;
+  $("read-panel").hidden = !r;
+  if (!r) return;
+  $("read-sub").textContent = `What ${state.opponent} has learned about you`;
+  const fold = r.fold_to_bets < 0.33 ? "You rarely give up. He bluffs you less."
+    : r.fold_to_bets > 0.47 ? "You fold too easily. Expect more bluffs." : "Nothing exploitable yet.";
+  const bluff = r.bluffs > 0.32 ? "Caught bluffing. He will call you down wider."
+    : r.bluffs < 0.18 ? "Your raises are honest. He believes them." : "Undecided on your bluffs.";
+  const aggr = r.aggression > 0.32 ? "Aggressive. He calls your bets more lightly."
+    : r.aggression < 0.18 ? "Passive. Your raises carry weight." : "Balanced aggression.";
+  const left = r.half_length - r.hands_this_half;
+  $("read").innerHTML =
+    meter("Folds to his bets", r.fold_to_bets, r.bet_hands, "hands he bet", fold) +
+    meter("Weak hands behind your raises", r.bluffs, r.showdown_raises, "raises shown down", bluff) +
+    meter("Your raise frequency", r.aggression, r.actions, "actions seen", aggr) +
+    `<div class="memory">Starts from typical-player guesses and sharpens as you play. Like a tournament half, his memory of you resets in ${left.toLocaleString()} hand${left === 1 ? "" : "s"}.</div>`;
 }
 
 function renderControls() {
@@ -238,7 +391,7 @@ function renderControls() {
   controlsKey = key;
   const el = $("controls");
   if (s.status === "idle" || s.status === "hand_over") {
-    el.innerHTML = `<button class="btn primary" id="deal">${s.status === "idle" ? "Deal" : "Deal next hand"}<kbd>N</kbd></button>`;
+    el.innerHTML = `<button class="btn primary deal-btn" id="deal">${s.status === "idle" ? "Challenge the Regent" : "Deal next hand"}<kbd>N</kbd></button>`;
     $("deal").onclick = deal;
     $("deal").focus();
     return;
@@ -311,8 +464,8 @@ document.addEventListener("keydown", (e) => {
   const t = state.to_act;
   if (k === "n" && (state.status === "idle" || state.status === "hand_over")) deal();
   else if (state.status === "your_turn" && t) {
-    const pick = { f: "FOLD", c: "CHECK_CALL", h: "RAISE_HALF", p: "RAISE_POT" }[k];
-    if (pick && t.legal.includes(pick)) act(pick);
+    const choice = { f: "FOLD", c: "CHECK_CALL", h: "RAISE_HALF", p: "RAISE_POT" }[k];
+    if (choice && t.legal.includes(choice)) act(choice);
   }
 });
 

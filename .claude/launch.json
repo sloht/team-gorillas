@@ -2,6 +2,12 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "play-thragg",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["play_vs_superbot.py", "--no-browser"],
+      "port": 8765
+    },
+    {
       "name": "play-potshove08",
       "runtimeExecutable": "python",
       "runtimeArgs": ["play_vs_superbot.py", "--opponent", "PotShove08", "--no-browser"],

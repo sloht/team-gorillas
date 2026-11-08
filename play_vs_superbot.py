@@ -1,11 +1,14 @@
-"""Play heads-up Short Deck PLO5 against SuperBot in your browser, under the official rules.
+"""Play heads-up Short Deck PLO5 in your browser, under the official rules.
 
-    python3 play_vs_superbot.py                         # uses ./hand_strategy_results
-    python3 play_vs_superbot.py --table path/to/results
+    python3 play_vs_superbot.py                         # Thragg: the final evolved champion
+    python3 play_vs_superbot.py --champion evolution_b/champion.json   # another champion
+    python3 play_vs_superbot.py --opponent SuperBot     # uses ./hand_strategy_results
     python3 play_vs_superbot.py --opponent ShortDeckPLO # any built-in bot, no table needed
 
-This opens http://127.0.0.1:8765. It only reads the saved strategy table; it
-never imports or runs hand_strategy_search.py.
+This opens http://127.0.0.1:8765. Thragg is the evolved champion from
+champion_search.py (evolution/champion.json), the same strategy as the
+tournament agent.py. Like in the tournament it learns your tendencies from each
+finished hand, and forgets them every 1,000 hands (one tournament half).
 
 How it works: every hand is an official game.Game (80-chip stacks, blinds
 1/2, fold / check-call / half-pot raise / pot raise, at most 4 raises per
@@ -29,12 +32,15 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Callable, Optional
 
-from official_match import OfficialSeat
+from official_match import as_seat
 from official_rules import evaluator, game
 from poker_bots import PokerBot
 from run_tournament import ALL_BUILTIN_STRATEGIES
 
 PAGE = Path(__file__).with_name("play_vs_superbot.html")
+PORTRAIT = Path(__file__).with_name("thragg_poker.webp")
+DEFAULT_CHAMPION = Path(__file__).with_name("evolution") / "champion.json"
+HALF_HANDS = 1000  # the champion's read on you resets this often, like a tournament half
 HUMAN, BOT = 0, 1
 STREETS = {game.Street.PREFLOP: "Preflop", game.Street.FLOP: "Flop",
            game.Street.TURN: "Turn", game.Street.RIVER: "River"}
@@ -65,10 +71,11 @@ class Table:
                  seed: Optional[str] = None, bot_delay: float = 0.7) -> None:
         self.lock = threading.Lock()
         self.opponent = opponent_factory()
-        self.seat = OfficialSeat(self.opponent)
+        self.seat = as_seat(self.opponent)
         self.opponent_label = opponent_label
         self.session_seed = str(seed) if seed is not None else secrets.token_hex(8)
-        self.seat.set_seed(int.from_bytes(self.session_seed.encode()[:8].ljust(8, b"0"), "big"))
+        self.rng_seed = int.from_bytes(self.session_seed.encode()[:8].ljust(8, b"0"), "big")
+        self.seat.set_seed(self.rng_seed)
         self.bot_delay = bot_delay
         self.hands_played = 0
         self.session_net = 0
@@ -85,6 +92,8 @@ class Table:
             if self.status not in ("idle", "hand_over"):
                 raise ValueError("Finish the current hand first.")
             number = self.hands_played
+            if number and number % HALF_HANDS == 0:  # a new "half": fresh opponent model
+                self.seat.set_seed(self.rng_seed + number)
             self.hand = game.Game(game.make_deal(self.session_seed, number),
                                   game.button_for_deal(number), hand_index=number)
             you_post = game.SMALL_BLIND if self.hand.button_seat == HUMAN else game.BIG_BLIND
@@ -153,6 +162,12 @@ class Table:
     def _finish(self) -> None:
         result = self.hand.result()
         net = result.nets[HUMAN]
+        on_hand_end = getattr(self.seat, "on_hand_end", None)
+        if callable(on_hand_end):  # adaptive bots learn from the finished hand, as in the tournament
+            try:
+                on_hand_end(self.hand.hand_result(BOT))
+            except Exception as error:
+                self.error = f"{self.opponent_label} could not learn from that hand ({error})."
         self.hands_played += 1
         self.session_net += net
         if net > 0:
@@ -187,6 +202,18 @@ class Table:
 
     # ---- view --------------------------------------------------------------
 
+    def _read(self) -> Optional[dict]:
+        """What an adaptive opponent has learned about you so far this half."""
+        bot = self.opponent
+        if not callable(getattr(bot, "opponent_fold_rate", None)):
+            return None
+        return {
+            "fold_to_bets": round(bot.opponent_fold_rate(), 3), "bet_hands": bot.bet_hands,
+            "bluffs": round(bot.opponent_bluff_rate(), 3), "showdown_raises": bot.sd_raises,
+            "aggression": round(bot.opponent_aggression(), 3), "actions": bot.opp_actions,
+            "hands_this_half": self.hands_played % HALF_HANDS, "half_length": HALF_HANDS,
+        }
+
     def state(self) -> dict:
         with self.lock:
             hand = self.hand
@@ -219,6 +246,8 @@ class Table:
             return {
                 "status": self.status,
                 "opponent": self.opponent_label,
+                "opponent_id": getattr(self.opponent, "champion_id", None),
+                "read": self._read(),
                 "hand_number": hands + (0 if self.status in ("idle", "hand_over") else 1),
                 "button": button,
                 "you": {"hole": _cards(view.hole_cards) if view else [], "stack": stacks[HUMAN],
@@ -260,6 +289,8 @@ def make_handler(table: Table) -> type[BaseHTTPRequestHandler]:
         def do_GET(self) -> None:
             if self.path in ("/", "/index.html"):
                 self._send(HTTPStatus.OK, PAGE.read_bytes(), "text/html; charset=utf-8")
+            elif self.path == "/thragg.webp" and PORTRAIT.exists():
+                self._send(HTTPStatus.OK, PORTRAIT.read_bytes(), "image/webp")
             elif self.path == "/api/state":
                 self._json(table.state())
             else:
@@ -284,7 +315,24 @@ def make_handler(table: Table) -> type[BaseHTTPRequestHandler]:
     return Handler
 
 
-def build_opponent(name: str, table_path: Optional[str]) -> tuple[Callable[[], PokerBot], str]:
+def build_champion(path: Path) -> tuple[Callable[[], object], str]:
+    """The evolved champion (champion_search.py), named Thragg at the table."""
+    from evolved_policy import EvolvedPolicy, Genome
+    champion = json.loads(Path(path).read_text())
+    genome = Genome.from_dict(champion["genome"])
+
+    def make() -> object:
+        policy = EvolvedPolicy(genome, name="Thragg")
+        policy.champion_id = champion["id"]
+        return policy
+
+    return make, "Thragg"
+
+
+def build_opponent(name: str, table_path: Optional[str],
+                   champion: Optional[str] = None) -> tuple[Callable[[], object], str]:
+    if name == "Thragg":
+        return build_champion(Path(champion) if champion else DEFAULT_CHAMPION)
     if name == "SuperBot":
         # Imported here so other opponents do not need a strategy table at all.
         from super_bot import SuperBot, load_strategy_table
@@ -292,7 +340,7 @@ def build_opponent(name: str, table_path: Optional[str]) -> tuple[Callable[[], P
         return (lambda: SuperBot(table_path=table_path)), "SuperBot"
     strategies = dict(ALL_BUILTIN_STRATEGIES)
     if name not in strategies:
-        raise SystemExit(f"Unknown opponent {name!r}. Use SuperBot or a name from "
+        raise SystemExit(f"Unknown opponent {name!r}. Use Thragg, SuperBot or a name from "
                          "run_tournament.py --list-strategies.")
     return strategies[name], name
 
@@ -305,8 +353,11 @@ def _default_table() -> str:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--opponent", default="SuperBot",
-                        help="SuperBot (default) or any built-in strategy name.")
+    parser.add_argument("--opponent", default="Thragg",
+                        help="Thragg (default: the evolved champion), SuperBot, or any built-in "
+                             "strategy name.")
+    parser.add_argument("--champion", help="Champion JSON for Thragg. "
+                                           "Default: evolution/champion.json.")
     parser.add_argument("--table", help="SuperBot's results folder or best_strategy_by_hand.json. "
                                         "Default: $SUPER_BOT_TABLE or ./hand_strategy_results.")
     parser.add_argument("--seed", help="Seed the deals to replay the same session.")
@@ -318,7 +369,7 @@ def main() -> None:
     args = parser.parse_args()
 
     try:
-        factory, label = build_opponent(args.opponent, args.table)
+        factory, label = build_opponent(args.opponent, args.table, args.champion)
     except (FileNotFoundError, ValueError) as error:
         raise SystemExit(f"{error}\n\nTo try the table now without a strategy table, run:\n"
                          "  python3 play_vs_superbot.py --opponent ShortDeckPLO")
