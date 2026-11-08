@@ -473,4 +473,9 @@ def candidates():
     for weight in (0.2, 0.4):
         result.append((f"shrink128_0.3_on_blend_pooled_recent_{weight}",
                        lambda w=weight: GatedShrink(_blend_pooled_recent(w), threshold=128, weight=0.3)))
+
+    # 9. Shrink on top of the tuning-best grid cell from candidates-04 (grid_s12_w0.5,
+    # tuning mean ratio 0.9152). Chosen by tuning only.
+    result.append(("shrink128_0.3_on_grid_s12_w0.5",
+                   lambda: GatedShrink(_grid_model(12, 0.5), threshold=128, weight=0.3)))
     return result
