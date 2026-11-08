@@ -1,0 +1,19 @@
+FINAL COMPARISON: 2 champion(s) vs 1253 distinct bots (3377 near-duplicates of 4631 known bots left out), seeds [90001, 90002], 1000 deals per match
+g0072c16 vs every known bot (1253 opponents, seeds [90001, 90002]): 2206.0/2506 points (88%), W1908 C596 L2, +1.544 bb/deal
+  built-in                      197.0/198   W196 C2 L0  +2.683 bb/deal
+  lineage A candidates         1091.0/1164  W1019 C144 L1  +1.654 bb/deal
+  lineage A past champions       28.0/30    W26 C4 L0  +1.243 bb/deal
+  lineage B candidates          868.5/1080  W658 C421 L1  +1.263 bb/deal
+  lineage B champion              1.0/2     W0 C2 L0  -0.237 bb/deal
+  lineage B past champions       20.5/32    W9 C23 L0  +0.403 bb/deal
+  lost to: Bg0056c13 (-0.58), g0073c23 (-0.38)
+Bg0064c09 vs every known bot (1253 opponents, seeds [90001, 90002]): 2137.5/2506 points (85%), W1769 C737 L0, +1.140 bb/deal
+  built-in                      197.5/198   W197 C1 L0  +2.127 bb/deal
+  lineage A candidates         1022.0/1164  W880 C284 L0  +1.122 bb/deal
+  lineage A champion              1.0/2     W0 C2 L0  +0.111 bb/deal
+  lineage A past champions       26.0/30    W22 C8 L0  +0.750 bb/deal
+  lineage B candidates          871.0/1080  W662 C418 L0  +1.011 bb/deal
+  lineage B past champions       20.0/32    W8 C24 L0  +0.456 bb/deal
+  lost to: nobody
+g0072c16 vs Bg0064c09 head to head over 4 matches: +0.051 bb/deal for g0072c16 (CCCC)
+Ranking by share of points, then bb/deal: g0072c16 (88.0%, +1.544)  >  Bg0064c09 (85.3%, +1.140)

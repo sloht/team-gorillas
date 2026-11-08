@@ -98,6 +98,11 @@ class OfficialSeat:
     def act(self, obs: "game.Observation") -> "game.Action":
         return to_official_action(self.bot.act(to_bot_observation(obs)), obs)
 
+    def on_hand_end(self, result: "game.HandResult") -> None:
+        on_hand_end = getattr(self.bot, "on_hand_end", None)
+        if callable(on_hand_end):
+            on_hand_end(result)
+
 
 def as_seat(player: object) -> object:
     """Accept either a team bot or something that already plays official actions."""
@@ -120,6 +125,11 @@ def play_hand(players: Sequence[object], deal: "game.Deal", button: int,
     while not hand.is_terminal:
         seat = hand.to_act
         hand.apply(players[seat].act(hand.observation(seat)))
+    # Like the tournament judge: tell each player how the hand ended (on_hand_end).
+    for seat, player in enumerate(players):
+        on_hand_end = getattr(player, "on_hand_end", None)
+        if callable(on_hand_end):
+            on_hand_end(hand.hand_result(seat))
     return hand
 
 
