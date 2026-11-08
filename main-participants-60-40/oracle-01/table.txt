@@ -1,0 +1,43 @@
+FULL validation (oracle rows are ceilings; diagnostic only)
+row                                   points  stable  short_history  drift  shared_change  mean_ratio
+------------------------------------  ------  ------  -------------  -----  -------------  ----------
+reference                             30.000   1.000          1.000  1.000          1.000      1.0000
+adaptive_lags                         31.094   0.935          0.994  0.926          0.863      0.9297
+pooled                                30.000   1.000          1.000  1.000          1.000      1.0000
+recent                                30.743   0.986          1.018  0.938          0.865      0.9517
+pooled_recent                         30.826   0.958          1.001  0.946          0.880      0.9464
+oracle_static_type_signal             29.974   0.967          1.080  1.000          0.960      1.0017
+oracle_episode_mean                   28.990   1.102          1.089  1.087          1.001      1.0697
+oracle_episode_type                   36.728   0.656          0.696  0.660          0.523      0.6336
+oracle_episode_type_signal            45.267   0.362          0.328  0.360          0.251      0.3255
+oracle_model_plus_episode_type_shift  38.071   0.599          0.618  0.575          0.512      0.5760
+oracle_blend_model_ref                31.121   0.935          0.988  0.926          0.863      0.9280
+
+Mean squared error per query by condition and machine_type (unweighted)
+condition      machine_type  queries  adaptive_lags  reference  ratio
+-------------  ------------  -------  -------------  ---------  -----
+stable             balanced       65         0.2245     0.2267  0.990
+stable              jackpot       58         0.0812     0.1002  0.810
+stable               steady       69         0.2311     0.2483  0.931
+short_history      balanced       60         0.2079     0.2039  1.019
+short_history       jackpot       71         0.0916     0.0857  1.068
+short_history        steady       61         0.2439     0.2578  0.946
+drift              balanced       58         0.1986     0.2070  0.960
+drift               jackpot       65         0.1066     0.1363  0.782
+drift                steady       69         0.2218     0.2259  0.982
+shared_change      balanced       51         0.2042     0.2498  0.817
+shared_change       jackpot       71         0.0992     0.1317  0.753
+shared_change        steady       70         0.2372     0.2483  0.955
+
+Mean squared error per query by condition and history length (unweighted)
+condition      history  queries  adaptive_lags  reference  ratio  share_of_error
+-------------  -------  -------  -------------  ---------  -----  --------------
+stable            128+      192         0.1836     0.1963  0.935           0.257
+short_history   32-127      192         0.1763     0.1773  0.994           0.247
+drift             128+      192         0.1758     0.1898  0.926           0.247
+shared_change     128+      192         0.1774     0.2056  0.863           0.249
+
+40 points at max_points=60 needs a mean loss ratio <= 0.500 (baseline is 0.930). Near the baseline, 0.01 of mean ratio is worth about 0.16 points.
+Reference error per condition (the loss unit): stable=0.1963, short_history=0.1773, drift=0.1898, shared_change=0.2056
+Queries per oracle group: oracle_static_type_signal: 768 queries / 9 groups, oracle_episode_mean: 768 queries / 96 groups, oracle_episode_type: 768 queries / 274 groups, oracle_episode_type_signal: 768 queries / 531 groups, oracle_model_plus_episode_type_shift: 768 queries / 274 groups
+oracle_blend_model_ref weights on adaptive_lags (rest on reference): stable=1.00, short_history=0.60, drift=1.00, shared_change=1.00

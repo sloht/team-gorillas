@@ -1,0 +1,28 @@
+TUNING half (select on this)
+candidate               points  stable  short_history  drift  shared_change  mean_ratio  seconds
+----------------------  ------  ------  -------------  -----  -------------  ----------  -------
+adaptive_lags           31.245   0.923          0.972  0.905          0.881      0.9203      1.5
+shrink_short_0.3        31.242   0.923          0.973  0.905          0.881      0.9205      2.0
+shift_self_hl32         31.216   0.951          0.971  0.896          0.871      0.9221      2.7
+shift_type_hl32         31.121   0.939          0.991  0.920          0.862      0.9280      3.0
+shift_type_signal_hl32  31.130   0.956          0.984  0.911          0.859      0.9274      2.7
+
+AUDIT half (report only; do not select on this)
+candidate               points  stable  short_history  drift  shared_change  mean_ratio  seconds
+----------------------  ------  ------  -------------  -----  -------------  ----------  -------
+adaptive_lags           30.919   0.949          1.019  0.950          0.844      0.9406      1.5
+shrink_short_0.3        30.974   0.949          1.005  0.950          0.844      0.9371      2.0
+shift_self_hl32         30.819   0.985          1.049  0.934          0.820      0.9469      2.7
+shift_type_hl32         30.873   0.951          1.069  0.952          0.802      0.9435      3.0
+shift_type_signal_hl32  30.854   0.971          1.059  0.941          0.807      0.9446      2.7
+
+FULL validation
+candidate               points  stable  short_history  drift  shared_change  mean_ratio  seconds
+----------------------  ------  ------  -------------  -----  -------------  ----------  -------
+adaptive_lags           31.094   0.935          0.994  0.926          0.863      0.9297      1.5
+shrink_short_0.3        31.118   0.935          0.988  0.926          0.863      0.9281      2.0
+shift_self_hl32         31.032   0.967          1.007  0.914          0.846      0.9335      2.7
+shift_type_hl32         31.008   0.945          1.027  0.935          0.833      0.9350      3.0
+shift_type_signal_hl32  31.004   0.963          1.019  0.925          0.834      0.9352      2.7
+
+Best by tuning mean loss ratio: adaptive_lags
