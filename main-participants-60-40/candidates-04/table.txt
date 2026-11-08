@@ -1,0 +1,19 @@
+TUNING half (select on this)
+candidate                                points  stable  short_history  drift  shared_change  mean_ratio  seconds
+---------------------------------------  ------  ------  -------------  -----  -------------  ----------  -------
+adaptive_lags                            31.245   0.923          0.972  0.905          0.881      0.9203      0.7
+combo_shift_self_g0.7_s80_shrink_jb_0.5  31.346   0.931          0.957  0.896          0.872      0.9141      1.4
+
+AUDIT half (report only; do not select on this)
+candidate                                points  stable  short_history  drift  shared_change  mean_ratio  seconds
+---------------------------------------  ------  ------  -------------  -----  -------------  ----------  -------
+adaptive_lags                            30.919   0.949          1.019  0.950          0.844      0.9406      0.7
+combo_shift_self_g0.7_s80_shrink_jb_0.5  31.035   0.961          1.006  0.938          0.827      0.9333      1.4
+
+FULL validation
+candidate                                points  stable  short_history  drift  shared_change  mean_ratio  seconds
+---------------------------------------  ------  ------  -------------  -----  -------------  ----------  -------
+adaptive_lags                            31.094   0.935          0.994  0.926          0.863      0.9297      0.7
+combo_shift_self_g0.7_s80_shrink_jb_0.5  31.203   0.945          0.980  0.916          0.850      0.9229      1.4
+
+Best by tuning mean loss ratio: combo_shift_self_g0.7_s80_shrink_jb_0.5

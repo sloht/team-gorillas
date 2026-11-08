@@ -1,0 +1,19 @@
+TUNING half (select on this)
+candidate                       points  stable  short_history  drift  shared_change  mean_ratio  seconds
+------------------------------  ------  ------  -------------  -----  -------------  ----------  -------
+adaptive_lags                   31.245   0.923          0.972  0.905          0.881      0.9203      0.7
+shrink128_0.3_on_grid_s12_w0.5  31.313   0.923          0.967  0.900          0.875      0.9162      1.0
+
+AUDIT half (report only; do not select on this)
+candidate                       points  stable  short_history  drift  shared_change  mean_ratio  seconds
+------------------------------  ------  ------  -------------  -----  -------------  ----------  -------
+adaptive_lags                   30.919   0.949          1.019  0.950          0.844      0.9406      0.7
+shrink128_0.3_on_grid_s12_w0.5  31.016   0.952          1.004  0.947          0.835      0.9345      1.0
+
+FULL validation
+candidate                       points  stable  short_history  drift  shared_change  mean_ratio  seconds
+------------------------------  ------  ------  -------------  -----  -------------  ----------  -------
+adaptive_lags                   31.094   0.935          0.994  0.926          0.863      0.9297      0.7
+shrink128_0.3_on_grid_s12_w0.5  31.176   0.937          0.984  0.922          0.856      0.9246      1.0
+
+Best by tuning mean loss ratio: shrink128_0.3_on_grid_s12_w0.5
